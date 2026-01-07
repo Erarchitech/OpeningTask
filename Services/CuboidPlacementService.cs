@@ -77,25 +77,15 @@ namespace OpeningTask.Services
             // Вычисляем параметры кубика
             var cuboidParams = CalculateCuboidParameters(intersection);
 
-            // Размещаем экземпляр семейства
-            FamilyInstance instance;
+            // Корректируем точку вставки с учетом того, что точка вставки семейства на верхней грани
+            var adjustedInsertionPoint = CalculateAdjustedInsertionPoint(
+                intersection, cuboidParams);
 
-            if (intersection.HostType == HostElementType.Wall)
-            {
-                // Для стен используем размещение по точке с ориентацией
-                instance = _doc.Create.NewFamilyInstance(
-                    intersection.InsertionPoint,
-                    symbol,
-                    StructuralType.NonStructural);
-            }
-            else
-            {
-                // Для перекрытий - аналогично
-                instance = _doc.Create.NewFamilyInstance(
-                    intersection.InsertionPoint,
-                    symbol,
-                    StructuralType.NonStructural);
-            }
+            // Размещаем экземпляр семейства
+            FamilyInstance instance = _doc.Create.NewFamilyInstance(
+                adjustedInsertionPoint,
+                symbol,
+                StructuralType.NonStructural);
 
             if (instance == null) return null;
 
@@ -106,6 +96,41 @@ namespace OpeningTask.Services
             SetCuboidParameters(instance, cuboidParams, intersection);
 
             return instance;
+        }
+
+        /// <summary>
+        /// Вычислить скорректированную точку вставки.
+        /// Точка вставки семейства находится на верхней грани кубика,
+        /// поэтому нужно сместить её относительно центра пересечения.
+        /// Смещение только на половину толщины элемента вставки (без учёта выступов).
+        /// </summary>
+        private XYZ CalculateAdjustedInsertionPoint(IntersectionInfo intersection, CuboidParameters cuboidParams)
+        {
+            var centerPoint = intersection.InsertionPoint;
+
+            if (intersection.HostType == HostElementType.Floor)
+            {
+                // Для перекрытий: точка вставки семейства на верхней грани
+                // Центр пересечения находится в середине перекрытия по толщине
+                // Смещаем только на половину толщины перекрытия
+                double halfHostThickness = intersection.HostThickness / 2.0;
+
+                return new XYZ(centerPoint.X, centerPoint.Y, centerPoint.Z + halfHostThickness);
+            }
+            else // Wall
+            {
+                // Для стен: точка вставки семейства на верхней грани (в направлении нормали стены)
+                // Центр пересечения находится в середине стены по толщине
+                // Смещаем только на половину толщины стены
+                double halfHostThickness = intersection.HostThickness / 2.0;
+
+                var normal = intersection.HostNormal.Normalize();
+
+                return new XYZ(
+                    centerPoint.X + normal.X * halfHostThickness,
+                    centerPoint.Y + normal.Y * halfHostThickness,
+                    centerPoint.Z);
+            }
         }
 
         /// <summary>
@@ -142,7 +167,7 @@ namespace OpeningTask.Services
 
             if (!File.Exists(familyPath))
             {
-                throw new FileNotFoundException($"Family file not found: {familyPath}");
+                throw new FileNotFoundException($"Файл семейства не найден: {familyPath}");
             }
 
             if (_doc.LoadFamily(familyPath, out Family family))
@@ -263,37 +288,83 @@ namespace OpeningTask.Services
         /// </summary>
         private void SetCuboidParameters(FamilyInstance instance, CuboidParameters cuboidParams, IntersectionInfo intersection)
         {
-            // Ширина
-            SetParameterByGuid(instance, CuboidSettings.WidthParamGuid, cuboidParams.Width);
+            // Ширина - общий параметр для стен и перекрытий
+            if (!SetParameterByGuid(instance, CuboidSettings.WidthParamGuid, cuboidParams.Width))
+            {
+                SetParameterByName(instance, "Ширина", cuboidParams.Width);
+            }
 
-            // Высота
-            SetParameterByGuid(instance, CuboidSettings.HeightParamGuid, cuboidParams.Height);
+            // Второй размер в плоскости зависит от типа элемента вставки:
+            // - Для стен: "Высота" (вертикальный размер)
+            // - Для перекрытий: "Длина" (второй горизонтальный размер)
+            if (intersection.HostType == HostElementType.Wall)
+            {
+                if (!SetParameterByGuid(instance, CuboidSettings.HeightParamGuid, cuboidParams.Height))
+                {
+                    SetParameterByName(instance, "Высота", cuboidParams.Height);
+                }
+            }
+            else // Floor
+            {
+                // Для перекрытий используем параметр "Длина"
+                SetParameterByName(instance, "Длина", cuboidParams.Height);
+            }
 
             // Толщина (зависит от типа элемента вставки)
             if (intersection.HostType == HostElementType.Wall)
             {
-                SetParameterByGuid(instance, CuboidSettings.WallThicknessParamGuid, intersection.HostThickness);
+                if (!SetParameterByGuid(instance, CuboidSettings.WallThicknessParamGuid, intersection.HostThickness))
+                {
+                    SetParameterByName(instance, "Толщина стены", intersection.HostThickness);
+                }
             }
             else
             {
-                SetParameterByGuid(instance, CuboidSettings.FloorThicknessParamGuid, intersection.HostThickness);
+                if (!SetParameterByGuid(instance, CuboidSettings.FloorThicknessParamGuid, intersection.HostThickness))
+                {
+                    SetParameterByName(instance, "Толщина плиты", intersection.HostThickness);
+                }
             }
 
             // Дополнительная толщина (выступ)
-            SetParameterByGuid(instance, CuboidSettings.AdditionalThickness1ParamGuid, cuboidParams.Protrusion);
-            SetParameterByGuid(instance, CuboidSettings.AdditionalThickness2ParamGuid, cuboidParams.Protrusion);
+            if (!SetParameterByGuid(instance, CuboidSettings.AdditionalThickness1ParamGuid, cuboidParams.Protrusion))
+            {
+                SetParameterByName(instance, "Дополнительная толщина 1", cuboidParams.Protrusion);
+            }
+            if (!SetParameterByGuid(instance, CuboidSettings.AdditionalThickness2ParamGuid, cuboidParams.Protrusion))
+            {
+                SetParameterByName(instance, "Дополнительная толщина 2", cuboidParams.Protrusion);
+            }
         }
 
         /// <summary>
         /// Установить параметр по GUID
         /// </summary>
-        private void SetParameterByGuid(Element element, Guid paramGuid, double value)
+        /// <returns>true если параметр успешно установлен</returns>
+        private bool SetParameterByGuid(Element element, Guid paramGuid, double value)
         {
             var param = element.get_Parameter(paramGuid);
             if (param != null && !param.IsReadOnly)
             {
                 param.Set(value);
+                return true;
             }
+            return false;
+        }
+
+        /// <summary>
+        /// Установить параметр по имени
+        /// </summary>
+        /// <returns>true если параметр успешно установлен</returns>
+        private bool SetParameterByName(Element element, string paramName, double value)
+        {
+            var param = element.LookupParameter(paramName);
+            if (param != null && !param.IsReadOnly && param.StorageType == StorageType.Double)
+            {
+                param.Set(value);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>

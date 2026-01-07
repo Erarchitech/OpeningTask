@@ -265,17 +265,18 @@ namespace OpeningTask.Services
         {
             double width = 0, height = 0, diameter = 0;
 
-            // Диаметр для труб
+            // Диаметр для труб - если есть диаметр, это круглый элемент
             var diameterParam = element.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM) ??
                                element.get_Parameter(BuiltInParameter.RBS_CURVE_DIAMETER_PARAM);
             if (diameterParam != null && diameterParam.HasValue)
             {
                 diameter = diameterParam.AsDouble();
-                width = diameter;
-                height = diameter;
+                // Для круглых элементов width и height равны диаметру
+                // Возвращаем сразу, чтобы параметры ширины/высоты не перезаписали значения
+                return (diameter, diameter, diameter);
             }
 
-            // Ширина и высота для прямоугольных элементов
+            // Ширина и высота для прямоугольных элементов (воздуховоды)
             var widthParam = element.get_Parameter(BuiltInParameter.RBS_CURVE_WIDTH_PARAM);
             var heightParam = element.get_Parameter(BuiltInParameter.RBS_CURVE_HEIGHT_PARAM);
 
