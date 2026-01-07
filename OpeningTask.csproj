@@ -60,6 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Commands\OpeningTaskCommand.cs" />
+    <Compile Include="Helpers\CuboidPlacementEventHandler.cs" />
     <Compile Include="Helpers\Extensions.cs" />
     <Compile Include="Helpers\Functions.cs" />
     <Compile Include="Helpers\RelayCommand.cs" />
