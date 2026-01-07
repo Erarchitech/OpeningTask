@@ -51,27 +51,16 @@ namespace OpeningTask.Commands
                     return Result.Failed;
                 }
 
-                // Создание ViewModel и отображение главного окна
+                // Создание ViewModel и инициализация главного окна
                 var viewModel = new MainWindowViewModel(uiDoc);
                 var mainWindow = new Views.MainWindow(viewModel);
 
                 // Показываем окно как диалог
                 bool? dialogResult = mainWindow.ShowDialog();
 
-                if (dialogResult == true)
-                {
-                    // Пользователь нажал OK - здесь будет логика второго этапа
-                    // (создание кубиков в местах пересечений)
-                    TaskDialog.Show("Информация", 
-                        "Настройки фильтрации применены.\n\n" +
-                        "Функционал создания кубиков будет реализован на втором этапе.");
-                    return Result.Succeeded;
-                }
-                else
-                {
-                    // Пользователь отменил операцию
-                    return Result.Cancelled;
-                }
+                // При нажатии OK запускается ExternalEvent для создания кубиков
+                // Результат операции будет показан после выполнения события
+                return dialogResult == true ? Result.Succeeded : Result.Cancelled;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
