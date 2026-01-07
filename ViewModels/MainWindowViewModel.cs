@@ -21,6 +21,10 @@ namespace OpeningTask.ViewModels
         private readonly Document _doc;
         private Window _window;
 
+        // External event for Revit API operations
+        private ExternalEvent _externalEvent;
+        private CuboidPlacementEventHandler _eventHandler;
+
         // Model section
         private ObservableCollection<LinkedModelInfo> _mepLinkedModels;
         private ObservableCollection<LinkedModelInfo> _arKrLinkedModels;
@@ -92,6 +96,11 @@ namespace OpeningTask.ViewModels
             OpenInstructionCommand = new RelayCommand(OpenInstruction);
 
             _cuboidSettings = new CuboidSettings();
+
+            // Initialize external event handler
+            _eventHandler = new CuboidPlacementEventHandler();
+            _eventHandler.OperationCompleted += OnPlacementCompleted;
+            _externalEvent = ExternalEvent.Create(_eventHandler);
 
             // Load linked models
             LoadLinkedModels();
@@ -585,43 +594,54 @@ namespace OpeningTask.ViewModels
                 return;
             }
 
-            try
+            // Настройка параметров кубиков
+            _cuboidSettings.RoundingValue = RoundDimensionsValue;
+            _cuboidSettings.MinOffset = MinOffset;
+            _cuboidSettings.Protrusion = Protrusion;
+            _cuboidSettings.UsePipeRoundCuboid = UsePipeRound;
+            _cuboidSettings.UseDuctRoundCuboid = UseDuctRound;
+
+            // Создаём запрос для внешнего события
+            _eventHandler.Request = new CuboidPlacementRequest
             {
-                // Поиск пересечений
-                var intersectionService = new IntersectionService(_doc);
-                var intersections = intersectionService.FindIntersections(
-                    mepElements, wallElements, floorElements);
+                MepElements = mepElements,
+                WallElements = wallElements,
+                FloorElements = floorElements,
+                Settings = _cuboidSettings
+            };
 
-                if (!intersections.Any())
+            // Запускаем внешнее событие
+            _externalEvent.Raise();
+
+            // Закрываем окно (результат покажется после выполнения)
+            if (_window != null)
+            {
+                _window.DialogResult = true;
+                _window.Close();
+            }
+        }
+
+        /// <summary>
+        /// Обработчик завершения операции размещения кубиков
+        /// </summary>
+        private void OnPlacementCompleted(bool success, int count, string errorMessage)
+        {
+            if (success)
+            {
+                if (count > 0)
                 {
-                    MessageBox.Show("Пересечения не найдены",
-                        "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
+                    MessageBox.Show($"Создано кубиков: {count}",
+                        "Готово", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-
-                // Настройка параметров кубиков
-                _cuboidSettings.RoundingValue = RoundDimensionsValue;
-                _cuboidSettings.MinOffset = MinOffset;
-                _cuboidSettings.Protrusion = Protrusion;
-                _cuboidSettings.UsePipeRoundCuboid = UsePipeRound;
-                _cuboidSettings.UseDuctRoundCuboid = UseDuctRound;
-
-                // Размещение кубиков
-                var placementService = new CuboidPlacementService(_doc, _cuboidSettings);
-                var placedCuboids = placementService.PlaceCuboids(intersections);
-
-                MessageBox.Show($"Создано кубиков: {placedCuboids.Count}",
-                    "Готово", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                if (_window != null)
+                else if (!string.IsNullOrEmpty(errorMessage))
                 {
-                    _window.DialogResult = true;
-                    _window.Close();
+                    MessageBox.Show(errorMessage,
+                        "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show($"Ошибка: {ex.Message}",
+                MessageBox.Show($"Ошибка: {errorMessage}",
                     "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
