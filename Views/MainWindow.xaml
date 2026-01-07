@@ -1,0 +1,301 @@
+<Window x:Class="OpeningTask.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Задание на отверстия" 
+        Height="750" Width="920" 
+        ResizeMode="NoResize" 
+        WindowStartupLocation="CenterScreen"
+        Background="#FAFAFA">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/OpeningTask;component/Resources/Styles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Конвертер для видимости -->
+            <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Секция модели -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Grid.Row="0" Margin="0,0,0,10">
+            <!-- Модель инженерных систем -->
+            <GroupBox Header="Модель инженерных систем" 
+                      FontWeight="Bold" 
+                      Style="{StaticResource ModernGroupBoxStyle}"
+                      Margin="0,0,10,0" 
+                      Width="435">
+                <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="MepModelsControl" ItemsSource="{Binding MepLinkedModels}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding Name, Mode=OneWay}" 
+                                          IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          Style="{StaticResource ModernCheckBoxStyle}"
+                                          FontWeight="Normal"
+                                          Margin="2"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </GroupBox>
+
+            <!-- Модель AP / KP -->
+            <GroupBox Header="Модель AP / KP" 
+                      FontWeight="Bold" 
+                      Style="{StaticResource ModernGroupBoxStyle}"
+                      Width="435">
+                <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="ArKrModelsControl" ItemsSource="{Binding ArKrLinkedModels}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding Name, Mode=OneWay}" 
+                                          IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          Style="{StaticResource ModernCheckBoxStyle}"
+                                          FontWeight="Normal"
+                                          Margin="2"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </GroupBox>
+        </StackPanel>
+
+        <!-- Секция фильтров -->
+        <GroupBox Header="Фильтры" 
+                  FontWeight="Bold" 
+                  Style="{StaticResource ModernGroupBoxStyle}"
+                  Grid.Row="1" 
+                  Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Инженерные системы -->
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                    <TextBlock Text="{Binding MepElementCountText}" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                        <CheckBox Content="Выбранные" 
+                                     IsChecked="{Binding IsMepSelectedMode}" 
+                                     Style="{StaticResource ModernCheckBoxStyle}"
+                                     Margin="0,0,10,0"
+                                     FontWeight="Normal"/>
+                        <Button Content="▶" 
+                                Command="{Binding SelectMepElementsCommand}"
+                                Style="{StaticResource IconButtonStyle}"
+                                ToolTip="Выбрать элементы на виде"
+                                FontSize="10"
+                                Visibility="{Binding IsMepSelectedMode, Converter={StaticResource BoolToVisibility}}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <CheckBox Content="По фильтру" 
+                                  IsChecked="{Binding IsMepFilterMode}"
+                                  Style="{StaticResource ModernCheckBoxStyle}"
+                                  FontWeight="Normal"/>
+                        <Button Command="{Binding OpenMepFilterCommand}"
+                                Style="{StaticResource IconButtonStyle}"
+                                ToolTip="Настройки фильтра"
+                                Margin="5,0,0,0"
+                                IsEnabled="{Binding IsMepFilterMode}">
+                            <Image Source="/OpeningTask;component/Resources/Images/gear-24.png" 
+                                   Width="16" Height="16" 
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Стены -->
+                <StackPanel Grid.Column="1" Margin="10,0">
+                    <TextBlock Text="{Binding WallElementCountText}" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <CheckBox Content="По фильтру" 
+                                  IsChecked="{Binding IsWallFilterEnabled}"
+                                  Style="{StaticResource ModernCheckBoxStyle}"
+                                  FontWeight="Normal"/>
+                        <Button Command="{Binding OpenWallFilterCommand}"
+                                Style="{StaticResource IconButtonStyle}"
+                                ToolTip="Настройки фильтра"
+                                Margin="5,0,0,0"
+                                IsEnabled="{Binding IsWallFilterEnabled}">
+                            <Image Source="/OpeningTask;component/Resources/Images/gear-24.png" 
+                                   Width="16" Height="16" 
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Перекрытия -->
+                <StackPanel Grid.Column="2" Margin="10,0,0,0">
+                    <TextBlock Text="{Binding FloorElementCountText}" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <CheckBox Content="По фильтру" 
+                                  IsChecked="{Binding IsFloorFilterEnabled}"
+                                  Style="{StaticResource ModernCheckBoxStyle}"
+                                  FontWeight="Normal"/>
+                        <Button Command="{Binding OpenFloorFilterCommand}"
+                                Style="{StaticResource IconButtonStyle}"
+                                ToolTip="Настройки фильтра"
+                                Margin="5,0,0,0"
+                                IsEnabled="{Binding IsFloorFilterEnabled}">
+                            <Image Source="/OpeningTask;component/Resources/Images/gear-24.png" 
+                                   Width="16" Height="16" 
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+
+        <!-- Секция кубиков -->
+        <GroupBox Header="Кубики" 
+                  FontWeight="Bold" 
+                  Style="{StaticResource ModernGroupBoxStyle}"
+                  Grid.Row="2" 
+                  Margin="0,0,0,10">
+            <StackPanel Margin="5">
+                <TextBlock Text="Параметры семейств кубиков" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                <!-- Параметры округления -->
+                <WrapPanel Margin="0,0,0,15">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,5">
+                        <CheckBox Content="Округлить габариты до:" 
+                                  IsChecked="{Binding RoundDimensions}"
+                                  Style="{StaticResource ModernCheckBoxStyle}"
+                                  FontWeight="Normal"
+                                  VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding RoundDimensionsValue}" 
+                                 Width="50" 
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 Margin="8,0,0,0"
+                                 IsEnabled="{Binding RoundDimensions}"/>
+                        <TextBlock Text="мм" Margin="5,0,0,0" VerticalAlignment="Center" FontWeight="Normal"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,5">
+                        <CheckBox Content="Округлить высотную отметку до:" 
+                                  IsChecked="{Binding RoundElevation}"
+                                  Style="{StaticResource ModernCheckBoxStyle}"
+                                  FontWeight="Normal"
+                                  VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding RoundElevationValue}" 
+                                 Width="50" 
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 Margin="8,0,0,0"
+                                 IsEnabled="{Binding RoundElevation}"/>
+                        <TextBlock Text="мм" Margin="5,0,0,0" VerticalAlignment="Center" FontWeight="Normal"/>
+                    </StackPanel>
+
+                    <CheckBox Content="Объединить пересекающиеся" 
+                              IsChecked="{Binding MergeIntersecting}"
+                              Style="{StaticResource ModernCheckBoxStyle}"
+                              FontWeight="Normal"
+                              Margin="0,0,0,5"/>
+                </WrapPanel>
+
+                <!-- Типы кубиков -->
+                <UniformGrid Columns="4" Rows="1" HorizontalAlignment="Center" Margin="0,10,0,0">
+                    <!-- Трубы -->
+                    <Border Style="{StaticResource SectionBorderStyle}" Margin="5" MinWidth="180">
+                        <StackPanel>
+                            <TextBlock Text="Трубы" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                            <Border Height="60" Background="#F8F8F8" CornerRadius="3" Margin="0,0,0,10">
+                                <TextBlock Text="🔵" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <CheckBox Content="круглые" 
+                                      IsChecked="{Binding UsePipeRound}" 
+                                      HorizontalAlignment="Center"
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      FontWeight="Normal"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Воздуховоды -->
+                    <Border Style="{StaticResource SectionBorderStyle}" Margin="5" MinWidth="180">
+                        <StackPanel>
+                            <TextBlock Text="Воздуховоды" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                            <Border Height="60" Background="#F8F8F8" CornerRadius="3" Margin="0,0,0,10">
+                                <TextBlock Text="🟢" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <CheckBox Content="круглые" 
+                                      IsChecked="{Binding UseDuctRound}" 
+                                      HorizontalAlignment="Center"
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      FontWeight="Normal"/>
+                            <CheckBox Content="прямоугольные" 
+                                      IsChecked="{Binding UseDuctRectangular}" 
+                                      HorizontalAlignment="Center"
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      FontWeight="Normal"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Лотки -->
+                    <Border Style="{StaticResource SectionBorderStyle}" Margin="5" MinWidth="180">
+                        <StackPanel>
+                            <TextBlock Text="Лотки" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                            <Border Height="60" Background="#F8F8F8" CornerRadius="3" Margin="0,0,0,10">
+                                <TextBlock Text="🟨" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <CheckBox Content="все" 
+                                      IsChecked="{Binding UseTrayAll}" 
+                                      HorizontalAlignment="Center"
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      FontWeight="Normal"/>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Нижняя панель -->
+        <DockPanel Grid.Row="3" LastChildFill="False" Margin="0,10,0,0">
+            <TextBlock DockPanel.Dock="Left" 
+                       Text="Инструкция по обмену заданиями на отверстия"
+                       Style="{StaticResource HyperlinkTextStyle}"
+                       VerticalAlignment="Center">
+                <TextBlock.InputBindings>
+                    <MouseBinding MouseAction="LeftClick" Command="{Binding OpenInstructionCommand}"/>
+                </TextBlock.InputBindings>
+            </TextBlock>
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="Отмена" 
+                        Command="{Binding CancelCommand}"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Width="100" 
+                        Height="35"
+                        Margin="0,0,10,0"/>
+                <Button Content="OK" 
+                        Command="{Binding OkCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Width="100" 
+                        Height="35"/>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

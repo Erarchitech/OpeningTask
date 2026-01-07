@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>OpeningTask</Name>
+    <FullClassName>OpeningTask.Interface</FullClassName>
+    <Assembly>OpeningTask.dll</Assembly>
+    <AddInId>F8A3D7E1-5B2C-4D9E-A1F6-8C7B4E3D2A1F</AddInId>
+    <VendorId>OpeningTask</VendorId>
+    <VendorDescription>Opening Task Plugin</VendorDescription>
+  </AddIn>
+</RevitAddIns>
