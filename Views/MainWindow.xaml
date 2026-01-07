@@ -1,4 +1,4 @@
-<Window x:Class="OpeningTask.Views.MainWindow"
+    <Window x:Class="OpeningTask.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -183,38 +183,37 @@
                 <!-- Параметры округления -->
                 <WrapPanel Margin="0,0,0,15">
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,5">
-                        <CheckBox Content="Округлить габариты до:" 
-                                  IsChecked="{Binding RoundDimensions}"
-                                  Style="{StaticResource ModernCheckBoxStyle}"
-                                  FontWeight="Normal"
-                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="Округление габаритов:" 
+                                   VerticalAlignment="Center" 
+                                   FontWeight="Normal"
+                                   Margin="0,0,8,0"/>
                         <TextBox Text="{Binding RoundDimensionsValue}" 
                                  Width="50" 
-                                 Style="{StaticResource ModernTextBoxStyle}"
-                                 Margin="8,0,0,0"
-                                 IsEnabled="{Binding RoundDimensions}"/>
+                                 Style="{StaticResource ModernTextBoxStyle}"/>
                         <TextBlock Text="мм" Margin="5,0,0,0" VerticalAlignment="Center" FontWeight="Normal"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,5">
-                        <CheckBox Content="Округлить высотную отметку до:" 
-                                  IsChecked="{Binding RoundElevation}"
-                                  Style="{StaticResource ModernCheckBoxStyle}"
-                                  FontWeight="Normal"
-                                  VerticalAlignment="Center"/>
-                        <TextBox Text="{Binding RoundElevationValue}" 
+                        <TextBlock Text="Мин. отступ от элемента:" 
+                                   VerticalAlignment="Center" 
+                                   FontWeight="Normal"
+                                   Margin="0,0,8,0"/>
+                        <TextBox Text="{Binding MinOffset}" 
                                  Width="50" 
-                                 Style="{StaticResource ModernTextBoxStyle}"
-                                 Margin="8,0,0,0"
-                                 IsEnabled="{Binding RoundElevation}"/>
+                                 Style="{StaticResource ModernTextBoxStyle}"/>
                         <TextBlock Text="мм" Margin="5,0,0,0" VerticalAlignment="Center" FontWeight="Normal"/>
                     </StackPanel>
 
-                    <CheckBox Content="Объединить пересекающиеся" 
-                              IsChecked="{Binding MergeIntersecting}"
-                              Style="{StaticResource ModernCheckBoxStyle}"
-                              FontWeight="Normal"
-                              Margin="0,0,0,5"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,5">
+                        <TextBlock Text="Выступ от элемента вставки:" 
+                                   VerticalAlignment="Center" 
+                                   FontWeight="Normal"
+                                   Margin="0,0,8,0"/>
+                        <TextBox Text="{Binding Protrusion}" 
+                                 Width="50" 
+                                 Style="{StaticResource ModernTextBoxStyle}"/>
+                        <TextBlock Text="мм" Margin="5,0,0,0" VerticalAlignment="Center" FontWeight="Normal"/>
+                    </StackPanel>
                 </WrapPanel>
 
                 <!-- Типы кубиков -->
@@ -228,6 +227,11 @@
                             </Border>
                             <CheckBox Content="круглые" 
                                       IsChecked="{Binding UsePipeRound}" 
+                                      HorizontalAlignment="Center"
+                                      Style="{StaticResource ModernCheckBoxStyle}"
+                                      FontWeight="Normal"/>
+                            <CheckBox Content="прямоугольные"   
+                                      IsChecked="{Binding UsePipeRectangular}" 
                                       HorizontalAlignment="Center"
                                       Style="{StaticResource ModernCheckBoxStyle}"
                                       FontWeight="Normal"/>

@@ -2,7 +2,9 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using OpeningTask.Helpers;
 using OpeningTask.Models;
+using OpeningTask.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
@@ -48,9 +50,14 @@ namespace OpeningTask.ViewModels
 
         // Cuboid types
         private bool _usePipeRound = true;
+        private bool _usePipeRectangular;
         private bool _useDuctRound;
         private bool _useDuctRectangular;
         private bool _useTrayAll;
+
+        private CuboidSettings _cuboidSettings;
+        private int _minOffset = 30;
+        private int _protrusion = 100;
 
         // Commands
         public ICommand OpenMepFilterCommand { get; }
@@ -83,6 +90,8 @@ namespace OpeningTask.ViewModels
             OkCommand = new RelayCommand(ExecuteOk);
             CancelCommand = new RelayCommand(ExecuteCancel);
             OpenInstructionCommand = new RelayCommand(OpenInstruction);
+
+            _cuboidSettings = new CuboidSettings();
 
             // Load linked models
             LoadLinkedModels();
@@ -270,6 +279,12 @@ namespace OpeningTask.ViewModels
             set => SetProperty(ref _usePipeRound, value);
         }
 
+        public bool UsePipeRectangular
+        {
+            get => _usePipeRectangular;
+            set => SetProperty(ref _usePipeRectangular, value);
+        }
+
         public bool UseDuctRound
         {
             get => _useDuctRound;
@@ -286,6 +301,45 @@ namespace OpeningTask.ViewModels
         {
             get => _useTrayAll;
             set => SetProperty(ref _useTrayAll, value);
+        }
+
+        /// <summary>
+        /// Настройки кубиков
+        /// </summary>
+        public CuboidSettings CuboidSettings
+        {
+            get => _cuboidSettings;
+            set => SetProperty(ref _cuboidSettings, value);
+        }
+
+        /// <summary>
+        /// Минимальный отступ от элемента (мм)
+        /// </summary>
+        public int MinOffset
+        {
+            get => _minOffset;
+            set
+            {
+                if (SetProperty(ref _minOffset, value))
+                {
+                    _cuboidSettings.MinOffset = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Выступ от элемента вставки (мм)
+        /// </summary>
+        public int Protrusion
+        {
+            get => _protrusion;
+            set
+            {
+                if (SetProperty(ref _protrusion, value))
+                {
+                    _cuboidSettings.Protrusion = value;
+                }
+            }
         }
 
         #endregion
@@ -497,34 +551,178 @@ namespace OpeningTask.ViewModels
         /// </summary>
         private void ExecuteOk()
         {
-            // Validate selection
+            // Валидация
             if (!_mepLinkedModels.Any(m => m.IsSelected))
             {
-                MessageBox.Show("Сначала выберите хотя бы одну модель инженерных систем", 
-                    "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Выберите хотя бы одну модель инженерных систем",
+                    "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (!_arKrLinkedModels.Any(m => m.IsSelected))
             {
-                MessageBox.Show("Выберите хотя бы одну модель АР/КР", 
-                    "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Выберите хотя бы одну модель АР/КР",
+                    "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            if (_window != null)
+            // Собираем элементы для проверки пересечений
+            var mepElements = CollectMepElements();
+            var wallElements = CollectWallElements();
+            var floorElements = CollectFloorElements();
+
+            if (!mepElements.Any())
             {
-                MessageBox.Show("Настройте параметры боксов",
-                    "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Не выбраны элементы инженерных систем",
+                    "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
+            if (!wallElements.Any() && !floorElements.Any())
+            {
+                MessageBox.Show("Не выбраны стены или перекрытия для поиска пересечений",
+                    "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-            //if (_window != null)
-            //{
-            //    _window.DialogResult = true;
-            //    _window.Close();
-            //}
+            try
+            {
+                // Поиск пересечений
+                var intersectionService = new IntersectionService(_doc);
+                var intersections = intersectionService.FindIntersections(
+                    mepElements, wallElements, floorElements);
+
+                if (!intersections.Any())
+                {
+                    MessageBox.Show("Пересечения не найдены",
+                        "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // Настройка параметров кубиков
+                _cuboidSettings.RoundingValue = RoundDimensionsValue;
+                _cuboidSettings.MinOffset = MinOffset;
+                _cuboidSettings.Protrusion = Protrusion;
+                _cuboidSettings.UsePipeRoundCuboid = UsePipeRound;
+                _cuboidSettings.UseDuctRoundCuboid = UseDuctRound;
+
+                // Размещение кубиков
+                var placementService = new CuboidPlacementService(_doc, _cuboidSettings);
+                var placedCuboids = placementService.PlaceCuboids(intersections);
+
+                MessageBox.Show($"Создано кубиков: {placedCuboids.Count}",
+                    "Готово", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                if (_window != null)
+                {
+                    _window.DialogResult = true;
+                    _window.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Собрать MEP элементы для проверки
+        /// </summary>
+        private List<LinkedElementInfo> CollectMepElements()
+        {
+            var result = new List<LinkedElementInfo>();
+
+            if (IsMepSelectedMode && _mepFilterSettings.SelectedLinkedElements.Any())
+            {
+                result.AddRange(_mepFilterSettings.SelectedLinkedElements);
+            }
+
+            if (IsMepFilterMode && _mepFilterSettings.IsFilterEnabled)
+            {
+                foreach (var linkedModel in _mepLinkedModels.Where(m => m.IsSelected && m.IsLoaded))
+                {
+                    var elements = Functions.FilterElements(
+                        linkedModel.LinkedDocument,
+                        _mepFilterSettings,
+                        Functions.MepCategories);
+
+                    foreach (var element in elements)
+                    {
+                        result.Add(new LinkedElementInfo
+                        {
+                            LinkInstance = linkedModel.LinkInstance,
+                            LinkedElementId = element.Id,
+                            LinkedElement = element,
+                            LinkedDocument = linkedModel.LinkedDocument
+                        });
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Собрать стены для проверки
+        /// </summary>
+        private List<LinkedElementInfo> CollectWallElements()
+        {
+            var result = new List<LinkedElementInfo>();
+
+            if (!IsWallFilterEnabled) return result;
+
+            foreach (var linkedModel in _arKrLinkedModels.Where(m => m.IsSelected && m.IsLoaded))
+            {
+                var elements = Functions.FilterElements(
+                    linkedModel.LinkedDocument,
+                    _wallFilterSettings,
+                    new[] { BuiltInCategory.OST_Walls });
+
+                foreach (var element in elements)
+                {
+                    result.Add(new LinkedElementInfo
+                    {
+                        LinkInstance = linkedModel.LinkInstance,
+                        LinkedElementId = element.Id,
+                        LinkedElement = element,
+                        LinkedDocument = linkedModel.LinkedDocument
+                    });
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Собрать перекрытия для проверки
+        /// </summary>
+        private List<LinkedElementInfo> CollectFloorElements()
+        {
+            var result = new List<LinkedElementInfo>();
+
+            if (!IsFloorFilterEnabled) return result;
+
+            foreach (var linkedModel in _arKrLinkedModels.Where(m => m.IsSelected && m.IsLoaded))
+            {
+                var elements = Functions.FilterElements(
+                    linkedModel.LinkedDocument,
+                    _floorFilterSettings,
+                    new[] { BuiltInCategory.OST_Floors });
+
+                foreach (var element in elements)
+                {
+                    result.Add(new LinkedElementInfo
+                    {
+                        LinkInstance = linkedModel.LinkInstance,
+                        LinkedElementId = element.Id,
+                        LinkedElement = element,
+                        LinkedDocument = linkedModel.LinkedDocument
+                    });
+                }
+            }
+
+            return result;
         }
 
         /// <summary>

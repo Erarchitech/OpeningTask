@@ -64,7 +64,9 @@
     <Compile Include="Helpers\Functions.cs" />
     <Compile Include="Helpers\RelayCommand.cs" />
     <Compile Include="Interface.cs" />
+    <Compile Include="Models\CuboidSettings.cs" />
     <Compile Include="Models\FilterSettings.cs" />
+    <Compile Include="Models\IntersectionInfo.cs" />
     <Compile Include="Models\LinkedModelInfo.cs" />
     <Compile Include="Models\TreeNode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -73,6 +75,8 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="Services\CuboidPlacementService.cs" />
+    <Compile Include="Services\IntersectionService.cs" />
     <Compile Include="ViewModels\BaseViewModel.cs" />
     <Compile Include="ViewModels\FilterWindowViewModel.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />
