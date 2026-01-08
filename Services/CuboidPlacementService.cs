@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Structure;
 using OpeningTask.Helpers;
 using OpeningTask.Models;
@@ -91,7 +92,7 @@ namespace OpeningTask.Services
             if (instance == null) return null;
 
             // Ориентируем кубик
-            OrientCuboid(instance, intersection);
+            OrientCuboid(instance, intersection, cuboidParams);
 
             // Заполняем параметры
             SetCuboidParameters(instance, cuboidParams, intersection);
@@ -244,7 +245,7 @@ namespace OpeningTask.Services
         /// <summary>
         /// Ориентировать кубик
         /// </summary>
-        private void OrientCuboid(FamilyInstance instance, IntersectionInfo intersection)
+        private void OrientCuboid(FamilyInstance instance, IntersectionInfo intersection, CuboidParameters cuboidParams)
         {
             // Получаем текущую ориентацию
             var currentFacing = instance.FacingOrientation;
@@ -252,7 +253,7 @@ namespace OpeningTask.Services
 
             if (intersection.HostType == HostElementType.Wall)
             {
-                // Для стен - ориентируем по нормали стены
+                // Для стен - базовая ориентация по нормали стены
                 var angle = GetAngleBetweenVectors(currentFacing, targetNormal);
                 if (Math.Abs(angle) > 0.001)
                 {
@@ -260,6 +261,12 @@ namespace OpeningTask.Services
                         intersection.InsertionPoint,
                         intersection.InsertionPoint + XYZ.BasisZ);
                     ElementTransformUtils.RotateElement(_doc, instance.Id, axis, angle);
+                }
+
+                // Для прямоугольных сечений: корректируем ориентацию по реальному сечению MEP
+                if (intersection.SectionType == MepSectionType.Rectangular && cuboidParams != null)
+                {
+                    OrientCuboidForWallByMepSection(instance, intersection, cuboidParams);
                 }
             }
             else
@@ -279,6 +286,164 @@ namespace OpeningTask.Services
                     ElementTransformUtils.RotateElement(_doc, instance.Id, axis, angle);
                 }
             }
+
+            // Коррекция для прямоугольных кубиков в ПЕРЕКРЫТИЯХ: сторона "Ширина" должна быть вдоль направления MEP.
+            // Для СТЕН эта коррекция не нужна — кубик уже правильно ориентирован по нормали стены.
+            // Иначе часть элементов поворачивается на 90° из-за различий осей семейства.
+            if (intersection.HostType == HostElementType.Wall)
+            {
+                // Для стен коррекция уже сделана в OrientCuboidForWallByMepSection
+                return;
+            }
+
+            try
+            {
+                RevitTrace.Info($"OrientCuboid rect-check: sectionType={intersection.SectionType} cuboidParams={(cuboidParams != null ? "ok" : "null")} mepDir=({intersection.MepDirection.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{intersection.MepDirection.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{intersection.MepDirection.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)})");
+
+                if (intersection.SectionType != MepSectionType.Rectangular)
+                    return;
+
+                if (cuboidParams == null)
+                    return;
+
+                RevitTrace.Info($"OrientCuboid rect-params: width={cuboidParams.Width.ToString("G", System.Globalization.CultureInfo.InvariantCulture)} height={cuboidParams.Height.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}");
+
+                var mepDir = new XYZ(intersection.MepDirection.X, intersection.MepDirection.Y, 0);
+                if (mepDir.GetLength() < 1e-6)
+                {
+                    // MEP идёт вертикально через перекрытие — направление MEP не даёт информации о повороте.
+                    // Извлекаем ориентацию сечения через коннекторы MEP-элемента.
+                    RevitTrace.Info("OrientCuboid: mepDir is vertical, extracting section orientation from connectors");
+                    
+                    var sectionXAxis = GetMepSectionXAxis(intersection.MepElement);
+                    if (sectionXAxis != null)
+                    {
+                        RevitTrace.Info($"OrientCuboid: sectionXAxis=({sectionXAxis.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{sectionXAxis.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{sectionXAxis.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)})");
+                        
+                        // Проецируем ось X сечения на горизонтальную плоскость
+                        var sectionXHoriz = new XYZ(sectionXAxis.X, sectionXAxis.Y, 0);
+                        if (sectionXHoriz.GetLength() > 1e-6)
+                        {
+                            sectionXHoriz = sectionXHoriz.Normalize();
+                            
+                            // Получаем текущую ось X семейства кубика
+                            var handCurrent = XYZ.BasisX;
+                            try { handCurrent = instance.HandOrientation; } catch { }
+                            handCurrent = new XYZ(handCurrent.X, handCurrent.Y, 0);
+                            if (handCurrent.GetLength() > 1e-6)
+                            {
+                                handCurrent = handCurrent.Normalize();
+                                
+                                // Вычисляем угол поворота от текущей оси к оси сечения
+                                var crossZSec = handCurrent.X * sectionXHoriz.Y - handCurrent.Y * sectionXHoriz.X;
+                                var dotVal = handCurrent.DotProduct(sectionXHoriz);
+                                var angleVal = Math.Atan2(crossZSec, dotVal);
+                                
+                                if (Math.Abs(angleVal) > 1e-6)
+                                {
+                                    var vertAxis = Line.CreateBound(intersection.InsertionPoint, intersection.InsertionPoint + XYZ.BasisZ);
+                                    ElementTransformUtils.RotateElement(_doc, instance.Id, vertAxis, angleVal);
+                                    RevitTrace.Info($"OrientCuboid: rotated by section orientation angle={angleVal.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}");
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: если не удалось получить ориентацию сечения
+                        RevitTrace.Warn("OrientCuboid: could not extract section orientation, using fallback");
+                        if (cuboidParams.Height > cuboidParams.Width + 1e-6)
+                        {
+                            var vertAxis = Line.CreateBound(intersection.InsertionPoint, intersection.InsertionPoint + XYZ.BasisZ);
+                            ElementTransformUtils.RotateElement(_doc, instance.Id, vertAxis, Math.PI / 2.0);
+                            RevitTrace.Info("OrientCuboid: rotated 90deg for vertical MEP (height > width)");
+                        }
+                    }
+                    return;
+                }
+                mepDir = mepDir.Normalize();
+
+                // Ось вращения - вертикаль (корректируем только вокруг Z)
+                var axis = Line.CreateBound(intersection.InsertionPoint, intersection.InsertionPoint + XYZ.BasisZ);
+
+                // Локальная ось X семейства в мире
+                var hand = XYZ.BasisX;
+                try { hand = instance.HandOrientation; } catch { hand = instance.FacingOrientation; }
+                hand = new XYZ(hand.X, hand.Y, 0);
+                if (hand.GetLength() < 1e-6)
+                    return;
+                hand = hand.Normalize();
+
+                // Локальная ось Y семейства в мире (в плоскости)
+                var handY = XYZ.BasisZ.CrossProduct(hand);
+                handY = new XYZ(handY.X, handY.Y, 0);
+                if (handY.GetLength() < 1e-6)
+                    return;
+                handY = handY.Normalize();
+
+                // Какая ось семьи должна быть вдоль MEP
+                // Предположение принятое в проекте: Width параметр вдоль локальной X (hand), Height/Length вдоль локальной Y.
+                var wantWidthAlongMep = cuboidParams.Width >= cuboidParams.Height;
+                var fromAxis = wantWidthAlongMep ? hand : handY;
+
+                RevitTrace.Info(
+                    $"OrientCuboid dbg: instanceId={instance.Id.Value} width={cuboidParams.Width.ToString("G", System.Globalization.CultureInfo.InvariantCulture)} height={cuboidParams.Height.ToString("G", System.Globalization.CultureInfo.InvariantCulture)} " +
+                    $"mepDir=({mepDir.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{mepDir.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}) " +
+                    $"hand=({hand.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{hand.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}) " +
+                    $"handY=({handY.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{handY.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}) " +
+                    $"from={(wantWidthAlongMep ? "X" : "Y")}");
+
+                // Точный угол поворота fromAxis -> mepDir в плоскости XY
+                var crossZ = fromAxis.X * mepDir.Y - fromAxis.Y * mepDir.X;
+                var dot = fromAxis.DotProduct(mepDir);
+                var angle = Math.Atan2(crossZ, dot);
+
+                if (Math.Abs(angle) < 1e-6)
+                    return;
+
+                ElementTransformUtils.RotateElement(_doc, instance.Id, axis, angle);
+
+                RevitTrace.Info($"OrientCuboid: aligned rectangular instanceId={instance.Id.Value} angle={angle.ToString("G", System.Globalization.CultureInfo.InvariantCulture)} wantWidthAlongMep={wantWidthAlongMep}");
+
+                // Автокоррекция: если семейство считает "ширину" вдоль другой оси, то после выравнивания
+                // ожидаемая ось (X для Width, Y для Height) может оказаться поперёк MEP.
+                try
+                {
+                    var hand2 = new XYZ(instance.HandOrientation.X, instance.HandOrientation.Y, 0);
+                    if (hand2.GetLength() > 1e-6)
+                        hand2 = hand2.Normalize();
+                    else
+                        hand2 = hand;
+
+                    var handY2 = XYZ.BasisZ.CrossProduct(hand2);
+                    handY2 = new XYZ(handY2.X, handY2.Y, 0);
+                    if (handY2.GetLength() > 1e-6)
+                        handY2 = handY2.Normalize();
+                    else
+                        handY2 = handY;
+
+                    var dotX = Math.Abs(hand2.DotProduct(mepDir));
+                    var dotY = Math.Abs(handY2.DotProduct(mepDir));
+                    var expected = wantWidthAlongMep ? dotX : dotY;
+                    var alternative = wantWidthAlongMep ? dotY : dotX;
+
+                    if (alternative - expected > 1e-3)
+                    {
+                        var sign = mepDir.DotProduct(handY2);
+                        var fix = sign >= 0 ? (Math.PI / 2.0) : (-Math.PI / 2.0);
+                        ElementTransformUtils.RotateElement(_doc, instance.Id, axis, fix);
+                        RevitTrace.Warn($"OrientCuboid: axis-swap fix applied instanceId={instance.Id.Value}");
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("OrientCuboid: orientation fix failed", ex);
+            }
         }
 
         /// <summary>
@@ -289,6 +454,203 @@ namespace OpeningTask.Services
             var cross = v1.CrossProduct(v2);
             var dot = v1.DotProduct(v2);
             return Math.Atan2(cross.Z, dot);
+        }
+
+        /// <summary>
+        /// Корректировать ориентацию кубика для стены по реальному сечению MEP-элемента.
+        /// Для прямоугольных воздуховодов: ширина MEP должна соответствовать ширине кубика,
+        /// высота MEP — высоте кубика.
+        /// </summary>
+        private void OrientCuboidForWallByMepSection(FamilyInstance instance, IntersectionInfo intersection, CuboidParameters cuboidParams)
+        {
+            try
+            {
+                RevitTrace.Info($"OrientCuboidForWallByMepSection: start instanceId={instance.Id.Value}");
+
+                // Получаем ось Y сечения MEP (направление высоты сечения)
+                var sectionYAxis = GetMepSectionYAxis(intersection.MepElement);
+                if (sectionYAxis == null)
+                {
+                    RevitTrace.Warn("OrientCuboidForWallByMepSection: could not get section Y axis");
+                    return;
+                }
+
+                RevitTrace.Info($"OrientCuboidForWallByMepSection: sectionYAxis=({sectionYAxis.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{sectionYAxis.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{sectionYAxis.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)})");
+
+                // Для горизонтального MEP, пересекающего стену:
+                // - BasisY коннектора (высота сечения) должна быть вертикальной (вдоль Z)
+                // - Если она не вертикальная, MEP повёрнут вокруг своей оси
+
+                // Проверяем вертикальную компоненту оси Y сечения
+                var sectionYVert = Math.Abs(sectionYAxis.Z);
+                
+                // Если ось Y сечения почти вертикальная (|Z| > 0.9), ориентация MEP стандартная
+                if (sectionYVert > 0.9)
+                {
+                    RevitTrace.Info("OrientCuboidForWallByMepSection: MEP section Y is vertical, no rotation needed");
+                    return;
+                }
+
+                // Если ось Y сечения горизонтальная, MEP повёрнут на 90° вокруг своей оси
+                // Нужно повернуть кубик на 90° вокруг нормали стены (FacingOrientation)
+                var facingDir = instance.FacingOrientation;
+                if (facingDir.GetLength() < 1e-6)
+                {
+                    RevitTrace.Warn("OrientCuboidForWallByMepSection: FacingOrientation is zero");
+                    return;
+                }
+
+                // Ось вращения - направление "в стену" (Facing), проходящая через точку вставки
+                var rotationAxis = Line.CreateBound(
+                    intersection.InsertionPoint,
+                    intersection.InsertionPoint + facingDir);
+
+                // Определяем угол поворота
+                // Ось Y сечения должна быть вертикальной (вдоль Z)
+                // Текущая ось Y кубика для стены - это вертикаль (Z)
+                // Если sectionYAxis горизонтальная, нужно повернуть на 90°
+
+                var sectionYHoriz = new XYZ(sectionYAxis.X, sectionYAxis.Y, 0);
+                if (sectionYHoriz.GetLength() < 1e-6)
+                {
+                    RevitTrace.Info("OrientCuboidForWallByMepSection: sectionY has no horizontal component");
+                    return;
+                }
+
+                // Поворачиваем кубик на 90° вокруг оси Facing
+                ElementTransformUtils.RotateElement(_doc, instance.Id, rotationAxis, Math.PI / 2.0);
+                RevitTrace.Info("OrientCuboidForWallByMepSection: rotated 90deg around Facing axis");
+
+                // После поворота нужно также поменять местами Width и Height в параметрах
+                // Но это уже сделано в CalculateCuboidParameters на основе MepWidth/MepHeight
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("OrientCuboidForWallByMepSection failed", ex);
+            }
+        }
+
+        /// <summary>
+        /// Получить ось Y сечения MEP-элемента из его коннекторов.
+        /// Для прямоугольных воздуховодов/лотков это ось вдоль высоты сечения.
+        /// </summary>
+        private XYZ GetMepSectionYAxis(Element mepElement)
+        {
+            try
+            {
+                if (mepElement == null)
+                    return null;
+
+                ConnectorManager connMgr = null;
+
+                if (mepElement is MEPCurve mepCurve)
+                {
+                    connMgr = mepCurve.ConnectorManager;
+                }
+                else if (mepElement is FamilyInstance fi)
+                {
+                    var mepModel = fi.MEPModel;
+                    if (mepModel != null)
+                        connMgr = mepModel.ConnectorManager;
+                }
+
+                if (connMgr == null)
+                    return null;
+
+                foreach (Connector conn in connMgr.Connectors)
+                {
+                    if (conn.Shape == ConnectorProfileType.Rectangular ||
+                        conn.Shape == ConnectorProfileType.Oval)
+                    {
+                        var cs = conn.CoordinateSystem;
+                        if (cs != null)
+                        {
+                            RevitTrace.Info($"GetMepSectionYAxis: found connector, BasisY=({cs.BasisY.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{cs.BasisY.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{cs.BasisY.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)})");
+                            return cs.BasisY;
+                        }
+                    }
+                }
+
+                foreach (Connector conn in connMgr.Connectors)
+                {
+                    var cs = conn.CoordinateSystem;
+                    if (cs != null)
+                    {
+                        return cs.BasisY;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("GetMepSectionYAxis failed", ex);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Получить ось X сечения MEP-элемента из его коннекторов.
+        /// Для прямоугольных воздуховодов/лотков это ось вдоль ширины сечения.
+        /// </summary>
+        private XYZ GetMepSectionXAxis(Element mepElement)
+        {
+            try
+            {
+                if (mepElement == null)
+                    return null;
+
+                // Получаем ConnectorManager элемента
+                ConnectorManager connMgr = null;
+
+                if (mepElement is MEPCurve mepCurve)
+                {
+                    connMgr = mepCurve.ConnectorManager;
+                }
+                else if (mepElement is FamilyInstance fi)
+                {
+                    var mepModel = fi.MEPModel;
+                    if (mepModel != null)
+                        connMgr = mepModel.ConnectorManager;
+                }
+
+                if (connMgr == null)
+                    return null;
+
+                // Ищем первый подходящий коннектор с прямоугольным профилем
+                foreach (Connector conn in connMgr.Connectors)
+                {
+                    if (conn.Shape == ConnectorProfileType.Rectangular ||
+                        conn.Shape == ConnectorProfileType.Oval)
+                    {
+                        // CoordinateSystem коннектора: Origin, BasisX, BasisY, BasisZ
+                        // BasisX — направление вдоль ширины сечения
+                        // BasisY — направление вдоль высоты сечения
+                        // BasisZ — направление вдоль оси воздуховода (наружу)
+                        var cs = conn.CoordinateSystem;
+                        if (cs != null)
+                        {
+                            RevitTrace.Info($"GetMepSectionXAxis: found connector, BasisX=({cs.BasisX.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{cs.BasisX.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{cs.BasisX.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)})");
+                            return cs.BasisX;
+                        }
+                    }
+                }
+
+                // Если прямоугольных нет, попробуем любой
+                foreach (Connector conn in connMgr.Connectors)
+                {
+                    var cs = conn.CoordinateSystem;
+                    if (cs != null)
+                    {
+                        return cs.BasisX;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("GetMepSectionXAxis failed", ex);
+            }
+
+            return null;
         }
 
         /// <summary>
