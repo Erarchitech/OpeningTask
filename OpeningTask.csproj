@@ -64,6 +64,7 @@
     <Compile Include="Helpers\Extensions.cs" />
     <Compile Include="Helpers\Functions.cs" />
     <Compile Include="Helpers\RelayCommand.cs" />
+    <Compile Include="Helpers\RevitTrace.cs" />
     <Compile Include="Interface.cs" />
     <Compile Include="Models\CuboidSettings.cs" />
     <Compile Include="Models\FilterSettings.cs" />

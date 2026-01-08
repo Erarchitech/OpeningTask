@@ -109,6 +109,10 @@ namespace OpeningTask.ViewModels
         public void SetWindow(Window window)
         {
             _window = window;
+            if (_window != null)
+            {
+                _eventHandler.UiDispatcher = _window.Dispatcher;
+            }
         }
 
         #region Model section properties
@@ -560,6 +564,7 @@ namespace OpeningTask.ViewModels
         /// </summary>
         private void ExecuteOk()
         {
+            RevitTrace.Info("UI OK: clicked");
             // Валидация
             if (!_mepLinkedModels.Any(m => m.IsSelected))
             {
@@ -576,9 +581,12 @@ namespace OpeningTask.ViewModels
             }
 
             // Собираем элементы для проверки пересечений
+            RevitTrace.Info("UI OK: collecting elements");
             var mepElements = CollectMepElements();
             var wallElements = CollectWallElements();
             var floorElements = CollectFloorElements();
+
+            RevitTrace.Info($"UI OK: collected mep={mepElements.Count}, walls={wallElements.Count}, floors={floorElements.Count}");
 
             if (!mepElements.Any())
             {
@@ -602,6 +610,7 @@ namespace OpeningTask.ViewModels
             _cuboidSettings.UseDuctRoundCuboid = UseDuctRound;
 
             // Создаём запрос для внешнего события
+            RevitTrace.Info("UI OK: building request");
             _eventHandler.Request = new CuboidPlacementRequest
             {
                 MepElements = mepElements,
@@ -611,13 +620,48 @@ namespace OpeningTask.ViewModels
             };
 
             // Запускаем внешнее событие
+            RevitTrace.Info("UI OK: raising ExternalEvent");
             _externalEvent.Raise();
+            RevitTrace.Info("UI OK: ExternalEvent.Raise returned");
 
             // Закрываем окно (результат покажется после выполнения)
             if (_window != null)
             {
-                _window.DialogResult = true;
-                _window.Close();
+                try
+                {
+                    RevitTrace.Info("UI OK: closing MainWindow");
+                    var canSetDialogResult = false;
+                    try
+                    {
+                        // DialogResult доступен только если окно показано как диалоговое
+                        // (иначе выбрасывается InvalidOperationException)
+                        canSetDialogResult = _window.IsLoaded;
+                    }
+                    catch
+                    {
+                        canSetDialogResult = false;
+                    }
+
+                    if (canSetDialogResult)
+                    {
+                        try
+                        {
+                            _window.DialogResult = true;
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // Окно не диалоговое в текущем контексте
+                        }
+                    }
+
+                    _window.Close();
+                    RevitTrace.Info("UI OK: MainWindow closed");
+                }
+                catch (Exception ex)
+                {
+                    RevitTrace.Error("UI OK: exception during MainWindow close", ex);
+                    throw;
+                }
             }
         }
 

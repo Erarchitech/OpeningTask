@@ -1,5 +1,6 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
+using OpeningTask.Helpers;
 using OpeningTask.Models;
 using System;
 using System.Collections.Generic;
@@ -143,6 +144,8 @@ namespace OpeningTask.Services
                 intersection.SectionType,
                 intersection.MepType);
 
+            RevitTrace.Info($"GetOrLoadFamilySymbol: familyName={familyName}, hostType={intersection.HostType}, section={intersection.SectionType}, mepType={intersection.MepType}");
+
             // Проверяем кэш
             if (_loadedSymbols.TryGetValue(familyName, out var cachedSymbol))
                 return cachedSymbol;
@@ -172,6 +175,7 @@ namespace OpeningTask.Services
 
             if (_doc.LoadFamily(familyPath, out Family family))
             {
+                RevitTrace.Info($"GetOrLoadFamilySymbol: family loaded: {family.Name}");
                 var symbolId = family.GetFamilySymbolIds().FirstOrDefault();
                 if (symbolId != null && symbolId != ElementId.InvalidElementId)
                 {
@@ -179,6 +183,10 @@ namespace OpeningTask.Services
                     _loadedSymbols[familyName] = symbol;
                     return symbol;
                 }
+            }
+            else
+            {
+                RevitTrace.Warn($"GetOrLoadFamilySymbol: LoadFamily returned false: {familyPath}");
             }
 
             return null;

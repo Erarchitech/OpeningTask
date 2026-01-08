@@ -29,15 +29,28 @@ namespace OpeningTask.Services
         {
             var intersections = new List<IntersectionInfo>();
 
-            // Группируем элементы по связанным моделям для оптимизации
-            var mepByLink = mepElements.GroupBy(e => e.LinkInstance.Id);
-            var wallsByLink = wallElements.GroupBy(e => e.LinkInstance.Id);
-            var floorsByLink = floorElements.GroupBy(e => e.LinkInstance.Id);
+            try
+            {
+                RevitTrace.Info($"FindIntersections: mep={mepElements?.Count() ?? 0}, walls={wallElements?.Count() ?? 0}, floors={floorElements?.Count() ?? 0}");
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // Валидируем и обновляем ссылки на элементы
+            var validMepElements = ValidateAndRefreshElements(mepElements);
+            var validWallElements = ValidateAndRefreshElements(wallElements);
+            var validFloorElements = ValidateAndRefreshElements(floorElements);
 
             // Обрабатываем каждый MEP элемент
-            foreach (var mepInfo in mepElements)
+            foreach (var mepInfo in validMepElements)
             {
                 var mepElement = mepInfo.LinkedElement;
+                if (mepElement == null) continue;
+
+                RevitTrace.Info($"MEP element: linkInstId={mepInfo.LinkInstance?.Id?.Value}, elemId={mepInfo.LinkedElementId?.Value}, cat={mepElement.Category?.Name}");
+
                 var mepTransform = mepInfo.LinkInstance.GetTotalTransform();
 
                 // Получаем геометрию MEP элемента в координатах текущего документа
@@ -45,7 +58,7 @@ namespace OpeningTask.Services
                 if (!mepSolids.Any()) continue;
 
                 // Проверяем пересечения со стенами
-                foreach (var wallInfo in wallElements)
+                foreach (var wallInfo in validWallElements)
                 {
                     var intersection = FindElementIntersection(
                         mepInfo, mepSolids, mepTransform,
@@ -56,7 +69,7 @@ namespace OpeningTask.Services
                 }
 
                 // Проверяем пересечения с перекрытиями
-                foreach (var floorInfo in floorElements)
+                foreach (var floorInfo in validFloorElements)
                 {
                     var intersection = FindElementIntersection(
                         mepInfo, mepSolids, mepTransform,
@@ -71,6 +84,50 @@ namespace OpeningTask.Services
         }
 
         /// <summary>
+        /// Валидировать и обновить ссылки на элементы из связанных моделей
+        /// </summary>
+        private List<LinkedElementInfo> ValidateAndRefreshElements(IEnumerable<LinkedElementInfo> elements)
+        {
+            var result = new List<LinkedElementInfo>();
+
+            foreach (var info in elements)
+            {
+                try
+                {
+                    // Проверяем, что LinkInstance валиден
+                    if (info.LinkInstance == null || !info.LinkInstance.IsValidObject)
+                        continue;
+
+                    // Получаем актуальный документ связанной модели
+                    var linkedDoc = info.LinkInstance.GetLinkDocument();
+                    if (linkedDoc == null)
+                        continue;
+
+                    // Получаем актуальный элемент по ID
+                    var element = linkedDoc.GetElement(info.LinkedElementId);
+                    if (element == null || !element.IsValidObject)
+                        continue;
+
+                    // Создаём обновлённую информацию
+                    result.Add(new LinkedElementInfo
+                    {
+                        LinkInstance = info.LinkInstance,
+                        LinkedElementId = info.LinkedElementId,
+                        LinkedElement = element,
+                        LinkedDocument = linkedDoc
+                    });
+                }
+                catch (Exception)
+                {
+                    // Пропускаем недействительные элементы
+                    continue;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Найти пересечение между MEP элементом и элементом вставки
         /// </summary>
         private IntersectionInfo FindElementIntersection(
@@ -80,38 +137,50 @@ namespace OpeningTask.Services
             LinkedElementInfo hostInfo,
             HostElementType hostType)
         {
-            var hostElement = hostInfo.LinkedElement;
-            var hostTransform = hostInfo.LinkInstance.GetTotalTransform();
-
-            // Получаем геометрию элемента вставки
-            var hostSolids = GetTransformedSolids(hostElement, hostTransform);
-            if (!hostSolids.Any()) return null;
-
-            // Проверяем пересечение Solid-ов
-            foreach (var mepSolid in mepSolids)
+            try
             {
-                foreach (var hostSolid in hostSolids)
-                {
-                    try
-                    {
-                        // Используем BooleanOperationsUtils для проверки пересечения
-                        var intersectionSolid = BooleanOperationsUtils.ExecuteBooleanOperation(
-                            mepSolid, hostSolid, BooleanOperationsType.Intersect);
+                var hostElement = hostInfo.LinkedElement;
+                if (hostElement == null || !hostElement.IsValidObject)
+                    return null;
 
-                        if (intersectionSolid != null && intersectionSolid.Volume > 0.0001)
+                RevitTrace.Info($"Host element: type={hostType}, linkInstId={hostInfo.LinkInstance?.Id?.Value}, elemId={hostInfo.LinkedElementId?.Value}, cat={hostElement.Category?.Name}");
+
+                var hostTransform = hostInfo.LinkInstance.GetTotalTransform();
+
+                // Получаем геометрию элемента вставки
+                var hostSolids = GetTransformedSolids(hostElement, hostTransform);
+                if (!hostSolids.Any()) return null;
+
+                // Проверяем пересечение Solid-ов
+                foreach (var mepSolid in mepSolids)
+                {
+                    foreach (var hostSolid in hostSolids)
+                    {
+                        try
                         {
-                            // Нашли пересечение - вычисляем параметры
-                            return CreateIntersectionInfo(
-                                mepInfo, mepTransform,
-                                hostInfo, hostTransform, hostType,
-                                intersectionSolid);
+                            // Используем BooleanOperationsUtils для проверки пересечения
+                            var intersectionSolid = BooleanOperationsUtils.ExecuteBooleanOperation(
+                                mepSolid, hostSolid, BooleanOperationsType.Intersect);
+
+                            if (intersectionSolid != null && intersectionSolid.Volume > 0.0001)
+                            {
+                                // Нашли пересечение - вычисляем параметры
+                                return CreateIntersectionInfo(
+                                    mepInfo, mepTransform,
+                                    hostInfo, hostTransform, hostType,
+                                    intersectionSolid);
+                            }
+                        }
+                        catch (Autodesk.Revit.Exceptions.InvalidOperationException)
+                        {
+                            // Пропускаем некорректные геометрии
                         }
                     }
-                    catch (Autodesk.Revit.Exceptions.InvalidOperationException)
-                    {
-                        // Пропускаем некорректные геометрии
-                    }
                 }
+            }
+            catch (Exception)
+            {
+                // Пропускаем элементы с ошибками
             }
 
             return null;
@@ -172,18 +241,28 @@ namespace OpeningTask.Services
         {
             var solids = new List<Solid>();
 
-            var options = new Options
+            try
             {
-                ComputeReferences = true,
-                DetailLevel = ViewDetailLevel.Fine
-            };
+                if (element == null || !element.IsValidObject)
+                    return solids;
 
-            var geometry = element.get_Geometry(options);
-            if (geometry == null) return solids;
+                var options = new Options
+                {
+                    ComputeReferences = true,
+                    DetailLevel = ViewDetailLevel.Fine
+                };
 
-            foreach (var geoObj in geometry)
+                var geometry = element.get_Geometry(options);
+                if (geometry == null) return solids;
+
+                foreach (var geoObj in geometry)
+                {
+                    solids.AddRange(ExtractSolids(geoObj, transform));
+                }
+            }
+            catch (Exception)
             {
-                solids.AddRange(ExtractSolids(geoObj, transform));
+                // Возвращаем пустой список при ошибке
             }
 
             return solids.Where(s => s != null && s.Volume > 0).ToList();
