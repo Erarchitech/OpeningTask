@@ -147,6 +147,12 @@ namespace OpeningTask.Services
 
                 var hostTransform = hostInfo.LinkInstance.GetTotalTransform();
 
+                if (ShouldSkipParallelCase(mepInfo.LinkedElement, mepTransform, hostElement, hostTransform, hostType))
+                {
+                    RevitTrace.Info($"Skip parallel case: mepElemId={mepInfo.LinkedElementId?.Value}, hostElemId={hostInfo.LinkedElementId?.Value}, hostType={hostType}");
+                    return null;
+                }
+
                 // ѕолучаем геометрию элемента вставки
                 var hostSolids = GetTransformedSolids(hostElement, hostTransform);
                 if (!hostSolids.Any()) return null;
@@ -184,6 +190,59 @@ namespace OpeningTask.Services
             }
 
             return null;
+        }
+
+        private bool ShouldSkipParallelCase(
+            Element mepElement,
+            Transform mepTransform,
+            Element hostElement,
+            Transform hostTransform,
+            HostElementType hostType)
+        {
+            try
+            {
+                if (mepElement == null || hostElement == null)
+                    return false;
+
+                if (!(mepElement.Location is LocationCurve mepLoc) || mepLoc.Curve == null)
+                    return false;
+
+                var mepDir = (mepLoc.Curve.GetEndPoint(1) - mepLoc.Curve.GetEndPoint(0)).Normalize();
+                mepDir = mepTransform.OfVector(mepDir).Normalize();
+
+                const double parallelDot = 0.99; // ~8 deg
+                const double inPlaneDot = 0.01;  // ~89+ deg to normal
+
+                if (hostType == HostElementType.Wall)
+                {
+                    if (!(hostElement is Wall wall))
+                        return false;
+
+                    if (!(wall.Location is LocationCurve wallLoc) || wallLoc.Curve == null)
+                        return false;
+
+                    var wallDir = (wallLoc.Curve.GetEndPoint(1) - wallLoc.Curve.GetEndPoint(0)).Normalize();
+                    wallDir = hostTransform.OfVector(wallDir).Normalize();
+
+                    var dot = Math.Abs(mepDir.DotProduct(wallDir));
+                    return dot >= parallelDot;
+                }
+
+                if (hostType == HostElementType.Floor)
+                {
+                    // ƒл€ перекрыти€: если MEP почти в плоскости перекрыти€ (перпендикул€рен нормали),
+                    // то это не пробивка, а Ђзаходит/идет вдольї Ч пропускаем.
+                    var normal = hostTransform.OfVector(XYZ.BasisZ).Normalize();
+                    var dot = Math.Abs(mepDir.DotProduct(normal));
+                    return dot <= inPlaneDot;
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            return false;
         }
 
         /// <summary>
