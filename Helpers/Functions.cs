@@ -388,13 +388,13 @@ namespace OpeningTask.Helpers
                 var selection = uiDoc.Selection;
                 
                 // Create filter for linked elements
-                var linkedModelFilter = new LinkedElementSelectionFilter(selectedLinkedModels, categories);
+                var linkedModelFilter = new LinkedElementSelectionFilter(uiDoc.Document, selectedLinkedModels, categories);
                 
                 // Prompt user to select elements from linked models
                 var references = selection.PickObjects(
                     ObjectType.LinkedElement,
                     linkedModelFilter,
-                    "Select MEP elements from linked models (press Esc to finish)");
+                    "Select elements from linked models (press Esc to finish)");
 
                 foreach (var reference in references)
                 {
@@ -469,15 +469,27 @@ namespace OpeningTask.Helpers
     /// </summary>
     public class LinkedElementSelectionFilter : ISelectionFilter
     {
+        private readonly Document _hostDocument;
         private readonly HashSet<ElementId> _allowedLinkIds;
         private readonly BuiltInCategory[] _categories;
+        private readonly HashSet<long> _allowedCategoryIds;
 
-        public LinkedElementSelectionFilter(IEnumerable<LinkedModelInfo> allowedLinks, BuiltInCategory[] categories)
+        public LinkedElementSelectionFilter(Document hostDocument, IEnumerable<LinkedModelInfo> allowedLinks, BuiltInCategory[] categories)
         {
+            _hostDocument = hostDocument;
             _allowedLinkIds = new HashSet<ElementId>(
                 allowedLinks.Where(l => l.IsSelected && l.IsLoaded)
                            .Select(l => l.LinkInstance.Id));
             _categories = categories;
+
+            _allowedCategoryIds = new HashSet<long>();
+            if (_categories != null)
+            {
+                foreach (var c in _categories)
+                {
+                    _allowedCategoryIds.Add((long)c);
+                }
+            }
         }
 
         public bool AllowElement(Element elem)
@@ -492,9 +504,36 @@ namespace OpeningTask.Helpers
 
         public bool AllowReference(Reference reference, XYZ position)
         {
-            // This is called for linked elements
-            // We need to check if the linked element is in allowed categories
-            return true; // We'll filter by category after selection
+            try
+            {
+                if (reference == null) return false;
+                if (_hostDocument == null) return false;
+
+                // Ensure the link instance itself is allowed
+                if (!_allowedLinkIds.Contains(reference.ElementId))
+                    return false;
+
+                // Check linked element category
+                var linkInstance = reference.ElementId != null
+                    ? _hostDocument.GetElement(reference.ElementId) as RevitLinkInstance
+                    : null;
+
+                if (linkInstance == null) return false;
+
+                var linkedDoc = linkInstance.GetLinkDocument();
+                if (linkedDoc == null) return false;
+
+                var linkedElement = linkedDoc.GetElement(reference.LinkedElementId);
+                var categoryId = linkedElement?.Category?.Id?.Value;
+
+                if (categoryId == null) return false;
+
+                return _allowedCategoryIds.Contains(categoryId.Value);
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

@@ -48,6 +48,11 @@ namespace OpeningTask.Helpers
         public bool IsSuccess { get; private set; }
 
         /// <summary>
+        /// ID существующих кубиков, из-за которых создание было пропущено (дубликаты)
+        /// </summary>
+        public List<ElementId> DuplicateCuboidIds { get; private set; } = new List<ElementId>();
+
+        /// <summary>
         /// Событие завершения операции
         /// </summary>
         public event Action<bool, int, string> OperationCompleted;
@@ -59,6 +64,7 @@ namespace OpeningTask.Helpers
             ResultCount = 0;
             ErrorMessage = null;
             IsSuccess = false;
+            DuplicateCuboidIds.Clear();
 
             RevitTrace.Info("ExternalEvent.Execute: start");
 
@@ -111,6 +117,27 @@ namespace OpeningTask.Helpers
                 // Размещение кубиков
                 var placementService = new CuboidPlacementService(doc, Request.Settings);
                 var placedCuboids = placementService.PlaceCuboids(intersections);
+
+                try
+                {
+                    var dupIds = new HashSet<long>();
+                    foreach (var kvp in placementService.DuplicateExistingIds)
+                    {
+                        foreach (var id in kvp.Value)
+                        {
+                            if (id != null)
+                                dupIds.Add(id.Value);
+                        }
+                    }
+
+                    DuplicateCuboidIds = dupIds.Select(v => new ElementId(v)).ToList();
+                    RevitTrace.Info($"ExternalEvent.Execute: duplicatesExistingIds={DuplicateCuboidIds.Count}");
+                }
+                catch (Exception ex)
+                {
+                    DuplicateCuboidIds = new List<ElementId>();
+                    RevitTrace.Warn($"ExternalEvent.Execute: failed to collect duplicate ids: {ex.Message}");
+                }
 
                 ResultCount = placedCuboids.Count;
                 IsSuccess = true;

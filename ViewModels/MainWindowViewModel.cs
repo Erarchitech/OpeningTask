@@ -36,12 +36,14 @@ namespace OpeningTask.ViewModels
         private int _mepElementCount;
 
         // Filter section - walls
-        private bool _isWallFilterEnabled;
+        private bool _isWallSelectedMode;
+        private bool _isWallFilterMode;
         private FilterSettings _wallFilterSettings;
         private int _wallElementCount;
 
         // Filter section - floors
-        private bool _isFloorFilterEnabled;
+        private bool _isFloorSelectedMode;
+        private bool _isFloorFilterMode;
         private FilterSettings _floorFilterSettings;
         private int _floorElementCount;
 
@@ -68,6 +70,8 @@ namespace OpeningTask.ViewModels
         public ICommand OpenWallFilterCommand { get; }
         public ICommand OpenFloorFilterCommand { get; }
         public ICommand SelectMepElementsCommand { get; }
+        public ICommand SelectWallElementsCommand { get; }
+        public ICommand SelectFloorElementsCommand { get; }
         public ICommand OkCommand { get; }
         public ICommand CancelCommand { get; }
         public ICommand OpenInstructionCommand { get; }
@@ -88,9 +92,11 @@ namespace OpeningTask.ViewModels
 
             // Initialize commands
             OpenMepFilterCommand = new RelayCommand(OpenMepFilter, CanOpenMepFilter);
-            OpenWallFilterCommand = new RelayCommand(OpenWallFilter, () => IsWallFilterEnabled);
-            OpenFloorFilterCommand = new RelayCommand(OpenFloorFilter, () => IsFloorFilterEnabled);
+            OpenWallFilterCommand = new RelayCommand(OpenWallFilter, CanOpenWallFilter);
+            OpenFloorFilterCommand = new RelayCommand(OpenFloorFilter, CanOpenFloorFilter);
             SelectMepElementsCommand = new RelayCommand(SelectMepElements, CanSelectMepElements);
+            SelectWallElementsCommand = new RelayCommand(SelectWallElements, CanSelectWallElements);
+            SelectFloorElementsCommand = new RelayCommand(SelectFloorElements, CanSelectFloorElements);
             OkCommand = new RelayCommand(ExecuteOk);
             CancelCommand = new RelayCommand(ExecuteCancel);
             OpenInstructionCommand = new RelayCommand(OpenInstruction);
@@ -184,14 +190,27 @@ namespace OpeningTask.ViewModels
 
         #region Filter section properties - walls
 
-        public bool IsWallFilterEnabled
+        public bool IsWallSelectedMode
         {
-            get => _isWallFilterEnabled;
+            get => _isWallSelectedMode;
             set
             {
-                if (SetProperty(ref _isWallFilterEnabled, value))
+                if (SetProperty(ref _isWallSelectedMode, value))
+                {
+                    UpdateWallElementCount();
+                }
+            }
+        }
+
+        public bool IsWallFilterMode
+        {
+            get => _isWallFilterMode;
+            set
+            {
+                if (SetProperty(ref _isWallFilterMode, value))
                 {
                     _wallFilterSettings.IsFilterEnabled = value;
+                    UpdateWallElementCount();
                 }
             }
         }
@@ -220,14 +239,27 @@ namespace OpeningTask.ViewModels
 
         #region Filter section properties - floors
 
-        public bool IsFloorFilterEnabled
+        public bool IsFloorSelectedMode
         {
-            get => _isFloorFilterEnabled;
+            get => _isFloorSelectedMode;
             set
             {
-                if (SetProperty(ref _isFloorFilterEnabled, value))
+                if (SetProperty(ref _isFloorSelectedMode, value))
+                {
+                    UpdateFloorElementCount();
+                }
+            }
+        }
+
+        public bool IsFloorFilterMode
+        {
+            get => _isFloorFilterMode;
+            set
+            {
+                if (SetProperty(ref _isFloorFilterMode, value))
                 {
                     _floorFilterSettings.IsFilterEnabled = value;
+                    UpdateFloorElementCount();
                 }
             }
         }
@@ -432,12 +464,32 @@ namespace OpeningTask.ViewModels
             return IsMepFilterMode;
         }
 
+        private bool CanOpenWallFilter()
+        {
+            return IsWallFilterMode;
+        }
+
+        private bool CanOpenFloorFilter()
+        {
+            return IsFloorFilterMode;
+        }
+
         /// <summary>
         /// Check if can select MEP elements
         /// </summary>
         private bool CanSelectMepElements()
         {
             return IsMepSelectedMode && _mepLinkedModels.Any(m => m.IsSelected);
+        }
+
+        private bool CanSelectWallElements()
+        {
+            return IsWallSelectedMode && _arKrLinkedModels.Any(m => m.IsSelected);
+        }
+
+        private bool CanSelectFloorElements()
+        {
+            return IsFloorSelectedMode && _arKrLinkedModels.Any(m => m.IsSelected);
         }
 
         /// <summary>
@@ -461,6 +513,40 @@ namespace OpeningTask.ViewModels
             }
 
             MepElementCount = count;
+        }
+
+        private void UpdateWallElementCount()
+        {
+            int count = 0;
+
+            if (IsWallSelectedMode && _wallFilterSettings.SelectedLinkedElements.Any())
+            {
+                count = _wallFilterSettings.SelectedLinkedElements.Count;
+            }
+
+            if (IsWallFilterMode && _wallFilterSettings.ElementCount > 0)
+            {
+                count = _wallFilterSettings.ElementCount;
+            }
+
+            WallElementCount = count;
+        }
+
+        private void UpdateFloorElementCount()
+        {
+            int count = 0;
+
+            if (IsFloorSelectedMode && _floorFilterSettings.SelectedLinkedElements.Any())
+            {
+                count = _floorFilterSettings.SelectedLinkedElements.Count;
+            }
+
+            if (IsFloorFilterMode && _floorFilterSettings.ElementCount > 0)
+            {
+                count = _floorFilterSettings.ElementCount;
+            }
+
+            FloorElementCount = count;
         }
 
         /// <summary>
@@ -503,10 +589,12 @@ namespace OpeningTask.ViewModels
         private void OpenWallFilter()
         {
             var selectedArKrModels = _arKrLinkedModels.Where(m => m.IsSelected).ToList();
-            if (!selectedArKrModels.Any())
+            var preSelectedElements = IsWallSelectedMode ? _wallFilterSettings.SelectedLinkedElements : null;
+
+            if (!selectedArKrModels.Any() && (preSelectedElements == null || !preSelectedElements.Any()))
             {
-                MessageBox.Show("Select at least one AP / KP model first", 
-                    "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Сначала выберите хотя бы одну модель АР/КР или выбранные стены на виде",
+                    "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -514,7 +602,8 @@ namespace OpeningTask.ViewModels
                 selectedArKrModels, 
                 new[] { BuiltInCategory.OST_Walls }, 
                 _wallFilterSettings,
-                "Wall Filter");
+                "Wall Filter",
+                preSelectedElements);
 
             var filterWindow = new Views.FilterWindow(filterViewModel);
             filterWindow.Owner = _window;
@@ -532,10 +621,12 @@ namespace OpeningTask.ViewModels
         private void OpenFloorFilter()
         {
             var selectedArKrModels = _arKrLinkedModels.Where(m => m.IsSelected).ToList();
-            if (!selectedArKrModels.Any())
+            var preSelectedElements = IsFloorSelectedMode ? _floorFilterSettings.SelectedLinkedElements : null;
+
+            if (!selectedArKrModels.Any() && (preSelectedElements == null || !preSelectedElements.Any()))
             {
-                MessageBox.Show("Select at least one AP / KP model first", 
-                    "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Сначала выберите хотя бы одну модель АР/КР или выбранные перекрытия на виде",
+                    "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -543,7 +634,8 @@ namespace OpeningTask.ViewModels
                 selectedArKrModels, 
                 new[] { BuiltInCategory.OST_Floors }, 
                 _floorFilterSettings,
-                "Floor Filter");
+                "Floor Filter",
+                preSelectedElements);
 
             var filterWindow = new Views.FilterWindow(filterViewModel);
             filterWindow.Owner = _window;
@@ -552,6 +644,86 @@ namespace OpeningTask.ViewModels
             {
                 _floorFilterSettings = filterViewModel.FilterSettings;
                 FloorElementCount = _floorFilterSettings.ElementCount;
+            }
+        }
+
+        private void SelectWallElements()
+        {
+            var selectedArKrModels = _arKrLinkedModels.Where(m => m.IsSelected).ToList();
+            if (!selectedArKrModels.Any())
+            {
+                MessageBox.Show("Сначала выберите хотя бы одну модель АР/КР",
+                    "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                _window?.Hide();
+
+                var selectedElements = Functions.SelectElementsFromLinkedModels(
+                    _uiDoc,
+                    selectedArKrModels,
+                    new[] { BuiltInCategory.OST_Walls });
+
+                var filteredElements = selectedElements
+                    .Where(e => e.LinkedElement != null &&
+                                e.LinkedElement.Category != null &&
+                                e.LinkedElement.Category.Id.Value == (long)BuiltInCategory.OST_Walls)
+                    .ToList();
+
+                _wallFilterSettings.SelectedLinkedElements = filteredElements;
+                _wallFilterSettings.FilterType = FilterType.Selected;
+                WallElementCount = filteredElements.Count;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error selecting elements: {ex.Message}",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                _window?.Show();
+            }
+        }
+
+        private void SelectFloorElements()
+        {
+            var selectedArKrModels = _arKrLinkedModels.Where(m => m.IsSelected).ToList();
+            if (!selectedArKrModels.Any())
+            {
+                MessageBox.Show("Сначала выберите хотя бы одну модель АР/КР",
+                    "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                _window?.Hide();
+
+                var selectedElements = Functions.SelectElementsFromLinkedModels(
+                    _uiDoc,
+                    selectedArKrModels,
+                    new[] { BuiltInCategory.OST_Floors });
+
+                var filteredElements = selectedElements
+                    .Where(e => e.LinkedElement != null &&
+                                e.LinkedElement.Category != null &&
+                                e.LinkedElement.Category.Id.Value == (long)BuiltInCategory.OST_Floors)
+                    .ToList();
+
+                _floorFilterSettings.SelectedLinkedElements = filteredElements;
+                _floorFilterSettings.FilterType = FilterType.Selected;
+                FloorElementCount = filteredElements.Count;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error selecting elements: {ex.Message}",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                _window?.Show();
             }
         }
 
@@ -716,6 +888,33 @@ namespace OpeningTask.ViewModels
         {
             if (success)
             {
+                try
+                {
+                    var duplicateIds = _eventHandler?.DuplicateCuboidIds;
+                    if (duplicateIds != null && duplicateIds.Any())
+                    {
+                        RevitTrace.Info($"UI: showing duplicate cuboids warning, count={duplicateIds.Count}");
+
+                        var win = new Views.DuplicateCuboidsReportWindow(duplicateIds.Select(x => (long)x.Value));
+
+                        // MainWindow is closed right after ExternalEvent.Raise, so Owner can be null/invalid.
+                        if (_window != null && _window.IsLoaded)
+                        {
+                            win.Owner = _window;
+                        }
+                        else
+                        {
+                            win.Topmost = true;
+                        }
+
+                        win.ShowDialog();
+                    }
+                }
+                catch
+                {
+                    // ignore UI errors
+                }
+
                 if (count > 0)
                 {
                     MessageBox.Show($"Создано кубиков: {count}",
@@ -777,8 +976,23 @@ namespace OpeningTask.ViewModels
         private List<LinkedElementInfo> CollectWallElements()
         {
             var result = new List<LinkedElementInfo>();
+            var existing = new HashSet<string>();
 
-            if (!IsWallFilterEnabled) return result;
+            if (IsWallSelectedMode && _wallFilterSettings.SelectedLinkedElements.Any())
+            {
+                foreach (var info in _wallFilterSettings.SelectedLinkedElements)
+                {
+                    if (info?.LinkInstance == null || info.LinkedElementId == null) continue;
+
+                    var key = info.LinkInstance.Id.Value + ":" + info.LinkedElementId.Value;
+                    if (existing.Add(key))
+                    {
+                        result.Add(info);
+                    }
+                }
+            }
+
+            if (!IsWallFilterMode || !_wallFilterSettings.IsFilterEnabled) return result;
 
             foreach (var linkedModel in _arKrLinkedModels.Where(m => m.IsSelected && m.IsLoaded))
             {
@@ -799,7 +1013,26 @@ namespace OpeningTask.ViewModels
                 }
             }
 
-            return result;
+            if (!result.Any())
+            {
+                return result;
+            }
+
+            // De-duplicate (Selected + ByFilter may overlap)
+            var deduped = new List<LinkedElementInfo>(result.Count);
+            var seen = new HashSet<string>();
+            foreach (var info in result)
+            {
+                if (info?.LinkInstance == null || info.LinkedElementId == null) continue;
+
+                var key = info.LinkInstance.Id.Value + ":" + info.LinkedElementId.Value;
+                if (seen.Add(key))
+                {
+                    deduped.Add(info);
+                }
+            }
+
+            return deduped;
         }
 
         /// <summary>
@@ -808,8 +1041,23 @@ namespace OpeningTask.ViewModels
         private List<LinkedElementInfo> CollectFloorElements()
         {
             var result = new List<LinkedElementInfo>();
+            var existing = new HashSet<string>();
 
-            if (!IsFloorFilterEnabled) return result;
+            if (IsFloorSelectedMode && _floorFilterSettings.SelectedLinkedElements.Any())
+            {
+                foreach (var info in _floorFilterSettings.SelectedLinkedElements)
+                {
+                    if (info?.LinkInstance == null || info.LinkedElementId == null) continue;
+
+                    var key = info.LinkInstance.Id.Value + ":" + info.LinkedElementId.Value;
+                    if (existing.Add(key))
+                    {
+                        result.Add(info);
+                    }
+                }
+            }
+
+            if (!IsFloorFilterMode || !_floorFilterSettings.IsFilterEnabled) return result;
 
             foreach (var linkedModel in _arKrLinkedModels.Where(m => m.IsSelected && m.IsLoaded))
             {
@@ -830,7 +1078,26 @@ namespace OpeningTask.ViewModels
                 }
             }
 
-            return result;
+            if (!result.Any())
+            {
+                return result;
+            }
+
+            // De-duplicate (Selected + ByFilter may overlap)
+            var deduped = new List<LinkedElementInfo>(result.Count);
+            var seen = new HashSet<string>();
+            foreach (var info in result)
+            {
+                if (info?.LinkInstance == null || info.LinkedElementId == null) continue;
+
+                var key = info.LinkInstance.Id.Value + ":" + info.LinkedElementId.Value;
+                if (seen.Add(key))
+                {
+                    deduped.Add(info);
+                }
+            }
+
+            return deduped;
         }
 
         /// <summary>

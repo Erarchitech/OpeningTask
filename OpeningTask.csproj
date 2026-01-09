@@ -82,6 +82,9 @@
     <Compile Include="ViewModels\BaseViewModel.cs" />
     <Compile Include="ViewModels\FilterWindowViewModel.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />
+    <Compile Include="Views\DuplicateCuboidsReportWindow.xaml.cs">
+      <DependentUpon>DuplicateCuboidsReportWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\FilterWindow.xaml.cs">
       <DependentUpon>FilterWindow.xaml</DependentUpon>
     </Compile>
@@ -91,6 +94,9 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="Resources\Styles.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\DuplicateCuboidsReportWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\FilterWindow.xaml">

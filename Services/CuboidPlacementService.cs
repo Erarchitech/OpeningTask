@@ -19,14 +19,25 @@ namespace OpeningTask.Services
         private readonly CuboidSettings _settings;
         private readonly Dictionary<string, FamilySymbol> _loadedSymbols;
 
+        private readonly Dictionary<string, ElementId> _existingInstancesIndex;
+        private readonly HashSet<string> _newInstancesIndex;
+        private readonly Dictionary<string, List<ElementId>> _duplicateExistingIds;
+
         // Конвертация мм в футы
         private const double MmToFeet = 1.0 / 304.8;
+        private const double PointToleranceFeet = 1.0 / 304.8; // 1 mm
+
+        public IReadOnlyDictionary<string, List<ElementId>> DuplicateExistingIds => _duplicateExistingIds;
 
         public CuboidPlacementService(Document doc, CuboidSettings settings)
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _loadedSymbols = new Dictionary<string, FamilySymbol>();
+
+            _existingInstancesIndex = new Dictionary<string, ElementId>();
+            _newInstancesIndex = new HashSet<string>();
+            _duplicateExistingIds = new Dictionary<string, List<ElementId>>();
         }
 
         /// <summary>
@@ -39,6 +50,8 @@ namespace OpeningTask.Services
             using (var transaction = new Transaction(_doc, "Размещение кубиков"))
             {
                 transaction.Start();
+
+                BuildExistingInstancesIndex();
 
                 foreach (var intersection in intersections)
                 {
@@ -63,6 +76,32 @@ namespace OpeningTask.Services
             return placedInstances;
         }
 
+        private void BuildExistingInstancesIndex()
+        {
+            _existingInstancesIndex.Clear();
+            _newInstancesIndex.Clear();
+            _duplicateExistingIds.Clear();
+
+            var instances = new FilteredElementCollector(_doc)
+                .OfClass(typeof(FamilyInstance))
+                .Cast<FamilyInstance>();
+
+            foreach (var fi in instances)
+            {
+                if (fi?.Symbol == null)
+                    continue;
+
+                if (!(fi.Location is LocationPoint lp))
+                    continue;
+
+                var key = BuildInstanceKey(fi.Symbol.Id, lp.Point);
+                if (!_existingInstancesIndex.ContainsKey(key))
+                {
+                    _existingInstancesIndex[key] = fi.Id;
+                }
+            }
+        }
+
         /// <summary>
         /// Разместить один кубик
         /// </summary>
@@ -82,6 +121,12 @@ namespace OpeningTask.Services
             // Корректируем точку вставки с учетом того, что точка вставки семейства на верхней грани
             var adjustedInsertionPoint = CalculateAdjustedInsertionPoint(
                 intersection, cuboidParams);
+
+            // Проверяем дубликаты: такой же кубик (Symbol) в той же точке вставки
+            if (TryRegisterDuplicate(symbol.Id, adjustedInsertionPoint))
+            {
+                return null;
+            }
 
             RevitTrace.Info(
                 $"PlaceSingleCuboid: intersectionPoint=({intersection.InsertionPoint.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{intersection.InsertionPoint.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{intersection.InsertionPoint.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}) " +
@@ -123,7 +168,101 @@ namespace OpeningTask.Services
             // Ориентируем кубик (передаём точку размещения для оси вращения)
             OrientCuboid(instance, intersection, cuboidParams, adjustedInsertionPoint);
 
+            _newInstancesIndex.Add(BuildInstanceKey(symbol.Id, adjustedInsertionPoint));
+
             return instance;
+        }
+
+        private bool TryRegisterDuplicate(ElementId symbolId, XYZ insertionPoint)
+        {
+            var key = BuildInstanceKey(symbolId, insertionPoint);
+
+            if (_newInstancesIndex.Contains(key))
+            {
+                // Дубликат в рамках текущего запуска; не создаём второй раз.
+                return true;
+            }
+
+            if (_existingInstancesIndex.TryGetValue(key, out var existingId))
+            {
+                RevitTrace.Info($"Duplicate cuboid detected: symbolId={symbolId.Value} existingId={existingId.Value}");
+                if (!_duplicateExistingIds.TryGetValue(key, out var list))
+                {
+                    list = new List<ElementId>();
+                    _duplicateExistingIds[key] = list;
+                }
+
+                if (!list.Any(x => x.Value == existingId.Value))
+                {
+                    list.Add(existingId);
+                }
+
+                return true;
+            }
+
+            // Для случая, когда в модели есть кубики почти в той же точке (с учетом допуска),
+            // fallback: проверка по окрестности.
+            foreach (var kvp in _existingInstancesIndex)
+            {
+                if (!kvp.Key.StartsWith(symbolId.Value + ":", StringComparison.Ordinal))
+                    continue;
+
+                if (!TryParsePointFromKey(kvp.Key, out var existingPoint))
+                    continue;
+
+                if (existingPoint.DistanceTo(insertionPoint) <= PointToleranceFeet)
+                {
+                    RevitTrace.Info($"Duplicate cuboid detected (tolerance): symbolId={symbolId.Value} existingId={kvp.Value.Value}");
+                    if (!_duplicateExistingIds.TryGetValue(key, out var list))
+                    {
+                        list = new List<ElementId>();
+                        _duplicateExistingIds[key] = list;
+                    }
+
+                    if (!list.Any(x => x.Value == kvp.Value.Value))
+                    {
+                        list.Add(kvp.Value);
+                    }
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string BuildInstanceKey(ElementId symbolId, XYZ point)
+        {
+            // Округляем координаты по допуску, чтобы ключ был устойчивым
+            var x = Quantize(point.X, PointToleranceFeet);
+            var y = Quantize(point.Y, PointToleranceFeet);
+            var z = Quantize(point.Z, PointToleranceFeet);
+            return symbolId.Value + ":" + x + ":" + y + ":" + z;
+        }
+
+        private static double Quantize(double value, double step)
+        {
+            if (step <= 0) return value;
+            return Math.Round(value / step) * step;
+        }
+
+        private static bool TryParsePointFromKey(string key, out XYZ point)
+        {
+            point = null;
+            if (string.IsNullOrWhiteSpace(key)) return false;
+
+            var parts = key.Split(':');
+            if (parts.Length != 4) return false;
+
+            if (!double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var x))
+                return false;
+            if (!double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y))
+                return false;
+            if (!double.TryParse(parts[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var z))
+                return false;
+
+            point = new XYZ(x, y, z);
+            return true;
         }
 
         /// <summary>
