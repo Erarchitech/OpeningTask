@@ -262,6 +262,21 @@ namespace OpeningTask.Services
             // ¬ычисл€ем центр пересечени€
             var centroid = intersectionSolid.ComputeCentroid();
 
+            // Ѕазова€ точка вставки
+            var insertionPoint = centroid;
+
+            // ѕо умолчанию вычисл€ем точку вставки как пересечение оси MEP с плоскостью Host.
+            // Ёто устойчивее, чем центроид boolean-пересечени€, когда в хосте есть отверсти€/вырезы.
+            var axisIntersection = TryGetMepAxisIntersectionWithHostPlane(
+                mepElement,
+                mepTransform,
+                hostTransform,
+                hostType,
+                GetHostNormal(hostElement, hostTransform, hostType),
+                centroid);
+            if (axisIntersection != null)
+                insertionPoint = axisIntersection;
+
             // ќпредел€ем тип и параметры MEP элемента
             var mepType = GetMepElementType(mepElement);
             var sectionType = GetMepSectionType(mepElement);
@@ -280,7 +295,7 @@ namespace OpeningTask.Services
                 MepLinkInstance = mepInfo.LinkInstance,
                 HostElement = hostElement,
                 HostLinkInstance = hostInfo.LinkInstance,
-                InsertionPoint = centroid,
+                InsertionPoint = insertionPoint,
                 MepDirection = mepDirection,
                 HostNormal = hostNormal,
                 MepType = mepType,
@@ -291,6 +306,66 @@ namespace OpeningTask.Services
                 MepDiameter = diameter,
                 HostThickness = hostThickness
             };
+        }
+
+        private XYZ TryGetMepAxisIntersectionWithFloorPlane(
+            Element mepElement,
+            Transform mepTransform,
+            Transform hostTransform,
+            XYZ nearPoint)
+        {
+            return TryGetMepAxisIntersectionWithHostPlane(
+                mepElement,
+                mepTransform,
+                hostTransform,
+                HostElementType.Floor,
+                hostTransform.OfVector(XYZ.BasisZ),
+                nearPoint);
+        }
+
+        private XYZ TryGetMepAxisIntersectionWithHostPlane(
+            Element mepElement,
+            Transform mepTransform,
+            Transform hostTransform,
+            HostElementType hostType,
+            XYZ hostNormal,
+            XYZ nearPoint)
+        {
+            try
+            {
+                if (!(mepElement?.Location is LocationCurve mepLoc) || mepLoc.Curve == null)
+                    return null;
+
+                if (hostNormal == null || hostNormal.GetLength() < 1e-9)
+                    return null;
+
+                var p0 = mepTransform.OfPoint(mepLoc.Curve.GetEndPoint(0));
+                var p1 = mepTransform.OfPoint(mepLoc.Curve.GetEndPoint(1));
+                var dir = p1 - p0;
+                if (dir.GetLength() < 1e-9)
+                    return null;
+
+                // ѕлоскость Host: нормаль = hostNormal, точка на плоскости = nearPoint.
+                var n = hostNormal.Normalize();
+                var denom = n.DotProduct(dir);
+                if (Math.Abs(denom) < 1e-9)
+                    return null;
+
+                var t = n.DotProduct(nearPoint - p0) / denom;
+                var ip = p0 + dir.Multiply(t);
+
+                RevitTrace.Info(
+                    $"TryGetMepAxisIntersectionWithHostPlane: hostType={hostType} " +
+                    $"n=({n.X:F4},{n.Y:F4},{n.Z:F4}) p0=({p0.X:F4},{p0.Y:F4},{p0.Z:F4}) p1=({p1.X:F4},{p1.Y:F4},{p1.Z:F4}) " +
+                    $"near=({nearPoint.X:F4},{nearPoint.Y:F4},{nearPoint.Z:F4}) ip=({ip.X:F4},{ip.Y:F4},{ip.Z:F4})");
+
+                return ip;
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("TryGetMepAxisIntersectionWithHostPlane failed", ex);
+                return null;
+            }
         }
 
         /// <summary>

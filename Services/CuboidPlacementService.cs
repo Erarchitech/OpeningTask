@@ -83,6 +83,11 @@ namespace OpeningTask.Services
             var adjustedInsertionPoint = CalculateAdjustedInsertionPoint(
                 intersection, cuboidParams);
 
+            RevitTrace.Info(
+                $"PlaceSingleCuboid: intersectionPoint=({intersection.InsertionPoint.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{intersection.InsertionPoint.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{intersection.InsertionPoint.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}) " +
+                $"adjustedInsertionPoint=({adjustedInsertionPoint.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{adjustedInsertionPoint.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{adjustedInsertionPoint.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}) " +
+                $"hostType={intersection.HostType} sectionType={intersection.SectionType}");
+
             // Размещаем экземпляр семейства
             FamilyInstance instance = _doc.Create.NewFamilyInstance(
                 adjustedInsertionPoint,
@@ -91,20 +96,40 @@ namespace OpeningTask.Services
 
             if (instance == null) return null;
 
-            // Ориентируем кубик
-            OrientCuboid(instance, intersection, cuboidParams);
+            try
+            {
+                _doc.Regenerate();
+                var lp = instance.Location as LocationPoint;
+                if (lp != null)
+                {
+                    var p = lp.Point;
+                    RevitTrace.Info(
+                        $"PlaceSingleCuboid: instanceLocation=({p.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{p.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{p.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}) " +
+                        $"delta=({(p.X - adjustedInsertionPoint.X).ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{(p.Y - adjustedInsertionPoint.Y).ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{(p.Z - adjustedInsertionPoint.Z).ToString("G", System.Globalization.CultureInfo.InvariantCulture)})");
+                }
+                else
+                {
+                    RevitTrace.Warn("PlaceSingleCuboid: instance.Location is not LocationPoint after Regenerate");
+                }
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("PlaceSingleCuboid: failed to read instance location after creation", ex);
+            }
 
-            // Заполняем параметры
+            // ВАЖНО: сначала заполняем параметры, чтобы геометрия была правильной до поворота
             SetCuboidParameters(instance, cuboidParams, intersection);
+
+            // Ориентируем кубик (передаём точку размещения для оси вращения)
+            OrientCuboid(instance, intersection, cuboidParams, adjustedInsertionPoint);
 
             return instance;
         }
 
         /// <summary>
         /// Вычислить скорректированную точку вставки.
-        /// Точка вставки семейства находится на верхней грани кубика,
-        /// поэтому нужно сместить её относительно центра пересечения.
-        /// Смещение только на половину толщины элемента вставки (без учёта выступов).
+        /// Точка вставки семейства находится в центре кубика в плане.
+        /// Для перекрытий смещаем по Z на половину толщины хоста.
         /// </summary>
         private XYZ CalculateAdjustedInsertionPoint(IntersectionInfo intersection, CuboidParameters cuboidParams)
         {
@@ -112,27 +137,75 @@ namespace OpeningTask.Services
 
             if (intersection.HostType == HostElementType.Floor)
             {
-                // Для перекрытий: точка вставки семейства на верхней грани
-                // Центр пересечения находится в середине перекрытия по толщине
-                // Смещаем только на половину толщины перекрытия
+                // Для перекрытий: смещаем по Z на половину толщины перекрытия
                 double halfHostThickness = intersection.HostThickness / 2.0;
-
                 return new XYZ(centerPoint.X, centerPoint.Y, centerPoint.Z + halfHostThickness);
             }
-            else // Wall
+
+            if (intersection.HostType == HostElementType.Wall)
             {
-                // Для стен: точка вставки семейства на верхней грани (в направлении нормали стены)
-                // Центр пересечения находится в середине стены по толщине
-                // Смещаем только на половину толщины стены
-                double halfHostThickness = intersection.HostThickness / 2.0;
+                // Для стен точка вставки семейства прямоугольного кубика находится
+                // в центре нижней грани кубика. Поэтому опускаем точку вставки вниз
+                // на половину высоты САМОГО кубика (включая отступы/округления),
+                // т.к. cuboidParams уже рассчитаны с учетом MinOffset и rounding.
+                double halfCuboidHeight;
+                if (intersection.SectionType == MepSectionType.Round)
+                {
+                    halfCuboidHeight = (cuboidParams?.Diameter ?? 0) / 2.0;
+                }
+                else
+                {
+                    halfCuboidHeight = (cuboidParams?.Height ?? 0) / 2.0;
+                }
 
-                var normal = intersection.HostNormal.Normalize();
+                if (halfCuboidHeight > 1e-9)
+                {
+                    return new XYZ(centerPoint.X, centerPoint.Y, centerPoint.Z - halfCuboidHeight);
+                }
 
-                return new XYZ(
-                    centerPoint.X + normal.X * halfHostThickness,
-                    centerPoint.Y + normal.Y * halfHostThickness,
-                    centerPoint.Z);
+                return centerPoint;
             }
+
+            // Fallback
+            return centerPoint;
+        }
+
+        private XYZ ApplyFloorRectangularInsertionCompensation(IntersectionInfo intersection, XYZ insertionPoint, CuboidParameters cuboidParams)
+        {
+            // Наблюдаемое смещение равно половине разницы сторон (в плане).
+            // При текущем семейства: локальная X (HandOrientation) указывает вдоль "Width".
+            var delta = (cuboidParams.Width - cuboidParams.Height) / 2.0;
+            if (Math.Abs(delta) < 1e-9)
+                return insertionPoint;
+
+            // Компенсацию делаем вдоль оси сечения MEP (BasisX коннектора), спроецированной в XY.
+            // Это обеспечивает корректность независимо от ориентации в плане.
+            var sectionXAxis = GetMepSectionXAxis(intersection.MepElement);
+            if (sectionXAxis == null)
+            {
+                RevitTrace.Warn("ApplyFloorRectangularInsertionCompensation: sectionXAxis is null, skipping");
+                return insertionPoint;
+            }
+
+            var dir = new XYZ(sectionXAxis.X, sectionXAxis.Y, 0);
+            if (dir.GetLength() < 1e-6)
+            {
+                RevitTrace.Warn("ApplyFloorRectangularInsertionCompensation: sectionXAxis is vertical/zero in XY, skipping");
+                return insertionPoint;
+            }
+            dir = dir.Normalize();
+
+            // Сдвигаем точку вставки вдоль dir на delta.
+            // Знак выбран так, чтобы после поворота кубик совпал с точкой пересечения.
+            var compensated = insertionPoint + dir.Multiply(delta);
+
+            RevitTrace.Info(
+                $"ApplyFloorRectangularInsertionCompensation: delta={(delta * 304.8).ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}mm " +
+                $"dir=({dir.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{dir.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}) " +
+                $"from=({insertionPoint.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{insertionPoint.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{insertionPoint.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}) " +
+                $"to=({compensated.X.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{compensated.Y.ToString("G", System.Globalization.CultureInfo.InvariantCulture)},{compensated.Z.ToString("G", System.Globalization.CultureInfo.InvariantCulture)})");
+
+            return compensated;
         }
 
         /// <summary>
@@ -245,8 +318,18 @@ namespace OpeningTask.Services
         /// <summary>
         /// Ориентировать кубик
         /// </summary>
-        private void OrientCuboid(FamilyInstance instance, IntersectionInfo intersection, CuboidParameters cuboidParams)
+        private void OrientCuboid(FamilyInstance instance, IntersectionInfo intersection, CuboidParameters cuboidParams, XYZ insertionPoint)
         {
+            // Используем переданную точку размещения для оси вращения
+            // НЕ берём instance.Location — он может быть (0,0,0) до commit транзакции
+            var instanceLocation = insertionPoint;
+            
+            // Диагностика координат
+            RevitTrace.Info($"OrientCuboid coords: intersectionPoint=({intersection.InsertionPoint.X:F4},{intersection.InsertionPoint.Y:F4},{intersection.InsertionPoint.Z:F4}) " +
+                $"insertionPoint=({insertionPoint.X:F4},{insertionPoint.Y:F4},{insertionPoint.Z:F4}) " +
+                $"rotationAxis=({instanceLocation.X:F4},{instanceLocation.Y:F4},{instanceLocation.Z:F4}) " +
+                $"hostType={intersection.HostType}");
+            
             // Получаем текущую ориентацию
             var currentFacing = instance.FacingOrientation;
             var targetNormal = intersection.HostNormal;
@@ -258,15 +341,15 @@ namespace OpeningTask.Services
                 if (Math.Abs(angle) > 0.001)
                 {
                     var axis = Line.CreateBound(
-                        intersection.InsertionPoint,
-                        intersection.InsertionPoint + XYZ.BasisZ);
+                        instanceLocation,
+                        instanceLocation + XYZ.BasisZ);
                     ElementTransformUtils.RotateElement(_doc, instance.Id, axis, angle);
                 }
 
                 // Для прямоугольных сечений: корректируем ориентацию по реальному сечению MEP
                 if (intersection.SectionType == MepSectionType.Rectangular && cuboidParams != null)
                 {
-                    OrientCuboidForWallByMepSection(instance, intersection, cuboidParams);
+                    OrientCuboidForWallByMepSection(instance, intersection, cuboidParams, instanceLocation);
                 }
             }
             else
@@ -281,9 +364,12 @@ namespace OpeningTask.Services
                 {
                     var angle = GetAngleBetweenVectors(XYZ.BasisX, mepDirHorizontal);
                     var axis = Line.CreateBound(
-                        intersection.InsertionPoint,
-                        intersection.InsertionPoint + XYZ.BasisZ);
+                        instanceLocation,
+                        instanceLocation + XYZ.BasisZ);
                     ElementTransformUtils.RotateElement(_doc, instance.Id, axis, angle);
+                    
+                    // После поворота возвращаем экземпляр в правильную позицию
+                    ResetInstanceLocation(instance, instanceLocation);
                 }
             }
 
@@ -341,9 +427,12 @@ namespace OpeningTask.Services
                                 
                                 if (Math.Abs(angleVal) > 1e-6)
                                 {
-                                    var vertAxis = Line.CreateBound(intersection.InsertionPoint, intersection.InsertionPoint + XYZ.BasisZ);
+                                    var vertAxis = Line.CreateBound(instanceLocation, instanceLocation + XYZ.BasisZ);
                                     ElementTransformUtils.RotateElement(_doc, instance.Id, vertAxis, angleVal);
                                     RevitTrace.Info($"OrientCuboid: rotated by section orientation angle={angleVal.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}");
+                                    
+                                    // После поворота возвращаем экземпляр в правильную позицию
+                                    ResetInstanceLocation(instance, instanceLocation);
                                 }
                             }
                         }
@@ -354,17 +443,20 @@ namespace OpeningTask.Services
                         RevitTrace.Warn("OrientCuboid: could not extract section orientation, using fallback");
                         if (cuboidParams.Height > cuboidParams.Width + 1e-6)
                         {
-                            var vertAxis = Line.CreateBound(intersection.InsertionPoint, intersection.InsertionPoint + XYZ.BasisZ);
+                            var vertAxis = Line.CreateBound(instanceLocation, instanceLocation + XYZ.BasisZ);
                             ElementTransformUtils.RotateElement(_doc, instance.Id, vertAxis, Math.PI / 2.0);
                             RevitTrace.Info("OrientCuboid: rotated 90deg for vertical MEP (height > width)");
+                            
+                            // После поворота возвращаем экземпляр в правильную позицию
+                            ResetInstanceLocation(instance, instanceLocation);
                         }
                     }
                     return;
                 }
                 mepDir = mepDir.Normalize();
 
-                // Ось вращения - вертикаль (корректируем только вокруг Z)
-                var axis = Line.CreateBound(intersection.InsertionPoint, intersection.InsertionPoint + XYZ.BasisZ);
+                // Ось вращения - вертикаль через точку размещения экземпляра
+                var axis = Line.CreateBound(instanceLocation, instanceLocation + XYZ.BasisZ);
 
                 // Локальная ось X семейства в мире
                 var hand = XYZ.BasisX;
@@ -405,6 +497,9 @@ namespace OpeningTask.Services
 
                 RevitTrace.Info($"OrientCuboid: aligned rectangular instanceId={instance.Id.Value} angle={angle.ToString("G", System.Globalization.CultureInfo.InvariantCulture)} wantWidthAlongMep={wantWidthAlongMep}");
 
+                // После поворота возвращаем экземпляр в правильную позицию
+                ResetInstanceLocation(instance, instanceLocation);
+
                 // Автокоррекция: если семейство считает "ширину" вдоль другой оси, то после выравнивания
                 // ожидаемая ось (X для Width, Y для Height) может оказаться поперёк MEP.
                 try
@@ -433,6 +528,9 @@ namespace OpeningTask.Services
                         var fix = sign >= 0 ? (Math.PI / 2.0) : (-Math.PI / 2.0);
                         ElementTransformUtils.RotateElement(_doc, instance.Id, axis, fix);
                         RevitTrace.Warn($"OrientCuboid: axis-swap fix applied instanceId={instance.Id.Value}");
+                        
+                        // После поворота возвращаем экземпляр в правильную позицию
+                        ResetInstanceLocation(instance, instanceLocation);
                     }
                 }
                 catch
@@ -457,11 +555,84 @@ namespace OpeningTask.Services
         }
 
         /// <summary>
+        /// Вернуть экземпляр в правильную позицию после поворота.
+        /// Поворот вокруг оси может сместить экземпляр, если точка вставки семейства
+        /// не совпадает с геометрическим центром.
+        /// </summary>
+        private void ResetInstanceLocation(FamilyInstance instance, XYZ targetLocation)
+        {
+            try
+            {
+                // Принудительно обновляем документ, чтобы Location стал доступен
+                _doc.Regenerate();
+                
+                var locationPoint = instance.Location as LocationPoint;
+                if (locationPoint != null)
+                {
+                    var currentLocation = locationPoint.Point;
+                    RevitTrace.Info($"ResetInstanceLocation: currentLocation=({currentLocation.X:F4},{currentLocation.Y:F4},{currentLocation.Z:F4}) targetLocation=({targetLocation.X:F4},{targetLocation.Y:F4},{targetLocation.Z:F4})");
+                    
+                    var offset = targetLocation - currentLocation;
+                    
+                    if (offset.GetLength() > 1e-6)
+                    {
+                        // Перемещаем экземпляр обратно в целевую точку
+                        ElementTransformUtils.MoveElement(_doc, instance.Id, offset);
+                        RevitTrace.Info($"ResetInstanceLocation: moved by offset=({offset.X:F4},{offset.Y:F4},{offset.Z:F4}) length={offset.GetLength() * 304.8:F2}mm");
+                    }
+                    else
+                    {
+                        RevitTrace.Info("ResetInstanceLocation: no offset needed");
+                    }
+                }
+                else
+                {
+                    RevitTrace.Warn("ResetInstanceLocation: LocationPoint is null");
+                }
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("ResetInstanceLocation failed", ex);
+            }
+        }
+
+        /// <summary>
+        /// Вернуть экземпляр в правильную позицию по X и Y (Z не трогаем).
+        /// Используется после установки параметров, когда геометрия может сместиться.
+        /// </summary>
+        private void ResetInstanceLocationXY(FamilyInstance instance, XYZ targetLocation)
+        {
+            try
+            {
+                var locationPoint = instance.Location as LocationPoint;
+                if (locationPoint != null)
+                {
+                    var currentLocation = locationPoint.Point;
+                    
+                    // Смещение только по X и Y, Z оставляем как есть
+                    var offsetX = targetLocation.X - currentLocation.X;
+                    var offsetY = targetLocation.Y - currentLocation.Y;
+                    
+                    if (Math.Abs(offsetX) > 1e-6 || Math.Abs(offsetY) > 1e-6)
+                    {
+                        var offset = new XYZ(offsetX, offsetY, 0);
+                        ElementTransformUtils.MoveElement(_doc, instance.Id, offset);
+                        RevitTrace.Info($"ResetInstanceLocationXY: moved by offset=({offsetX:F4},{offsetY:F4},0) length={offset.GetLength() * 304.8:F2}mm");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("ResetInstanceLocationXY failed", ex);
+            }
+        }
+
+        /// <summary>
         /// Корректировать ориентацию кубика для стены по реальному сечению MEP-элемента.
         /// Для прямоугольных воздуховодов: ширина MEP должна соответствовать ширине кубика,
         /// высота MEP — высоте кубика.
         /// </summary>
-        private void OrientCuboidForWallByMepSection(FamilyInstance instance, IntersectionInfo intersection, CuboidParameters cuboidParams)
+        private void OrientCuboidForWallByMepSection(FamilyInstance instance, IntersectionInfo intersection, CuboidParameters cuboidParams, XYZ instanceLocation)
         {
             try
             {
@@ -500,10 +671,10 @@ namespace OpeningTask.Services
                     return;
                 }
 
-                // Ось вращения - направление "в стену" (Facing), проходящая через точку вставки
+                // Ось вращения - направление "в стену" (Facing), проходящая через точку размещения
                 var rotationAxis = Line.CreateBound(
-                    intersection.InsertionPoint,
-                    intersection.InsertionPoint + facingDir);
+                    instanceLocation,
+                    instanceLocation + facingDir);
 
                 // Определяем угол поворота
                 // Ось Y сечения должна быть вертикальной (вдоль Z)

@@ -289,25 +289,69 @@ namespace OpeningTask.ViewModels
         public bool UsePipeRound
         {
             get => _usePipeRound;
-            set => SetProperty(ref _usePipeRound, value);
+            set
+            {
+                if (SetProperty(ref _usePipeRound, value))
+                {
+                    // Взаимоисключение
+                    if (value)
+                        UsePipeRectangular = false;
+
+                    // Синхронизация с настройками
+                    _cuboidSettings.UsePipeRoundCuboid = value;
+                }
+            }
         }
 
         public bool UsePipeRectangular
         {
             get => _usePipeRectangular;
-            set => SetProperty(ref _usePipeRectangular, value);
+            set
+            {
+                if (SetProperty(ref _usePipeRectangular, value))
+                {
+                    // Взаимоисключение
+                    if (value)
+                        UsePipeRound = false;
+
+                    // Прямоугольный = не круглый
+                    _cuboidSettings.UsePipeRoundCuboid = !value;
+                }
+            }
         }
 
         public bool UseDuctRound
         {
             get => _useDuctRound;
-            set => SetProperty(ref _useDuctRound, value);
+            set
+            {
+                if (SetProperty(ref _useDuctRound, value))
+                {
+                    // Взаимоисключение
+                    if (value)
+                        UseDuctRectangular = false;
+
+                    // Синхронизация с настройками
+                    _cuboidSettings.UseDuctRoundCuboid = value;
+                }
+            }
         }
 
         public bool UseDuctRectangular
         {
             get => _useDuctRectangular;
-            set => SetProperty(ref _useDuctRectangular, value);
+            set
+            {
+                if (SetProperty(ref _useDuctRectangular, value))
+                {
+                    // Взаимоисключение
+                    if (value)
+                        UseDuctRound = false;
+
+                    // Прямоугольный = не круглый
+                    _cuboidSettings.UseDuctRoundCuboid = !value;
+                }
+            }
         }
 
         public bool UseTrayAll

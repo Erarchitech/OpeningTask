@@ -46,7 +46,27 @@ namespace OpeningTask.Models
         public bool UsePipeRoundCuboid
         {
             get => _usePipeRoundCuboid;
-            set => SetProperty(ref _usePipeRoundCuboid, value);
+            set
+            {
+                if (SetProperty(ref _usePipeRoundCuboid, value))
+                {
+                    // Взаимоисключение с прямоугольным вариантом
+                    OnPropertyChanged(nameof(UsePipeRectangularCuboid));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Использовать прямоугольный кубик для труб (взаимоисключается с UsePipeRoundCuboid)
+        /// </summary>
+        public bool UsePipeRectangularCuboid
+        {
+            get => !_usePipeRoundCuboid;
+            set
+            {
+                // Если выбирают прямоугольные, то круглые должны стать false
+                UsePipeRoundCuboid = !value;
+            }
         }
 
         /// <summary>
@@ -55,7 +75,27 @@ namespace OpeningTask.Models
         public bool UseDuctRoundCuboid
         {
             get => _useDuctRoundCuboid;
-            set => SetProperty(ref _useDuctRoundCuboid, value);
+            set
+            {
+                if (SetProperty(ref _useDuctRoundCuboid, value))
+                {
+                    // Взаимоисключение с прямоугольным вариантом
+                    OnPropertyChanged(nameof(UseDuctRectangularCuboid));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Использовать прямоугольный кубик для воздуховодов (взаимоисключается с UseDuctRoundCuboid)
+        /// </summary>
+        public bool UseDuctRectangularCuboid
+        {
+            get => !_useDuctRoundCuboid;
+            set
+            {
+                // Если выбирают прямоугольные, то круглые должны стать false
+                UseDuctRoundCuboid = !value;
+            }
         }
 
         /// <summary>
