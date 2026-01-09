@@ -1,4 +1,4 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,9 +42,9 @@ namespace OpeningTask.Views
             {
                 var dialog = new SaveFileDialog
                 {
-                    Filter = "Text files (*.txt)|*.txt",
+                    Filter = "Текстовые файлы (*.txt)|*.txt",
                     DefaultExt = ".txt",
-                    FileName = "DuplicateCuboidsReport.txt"
+                    FileName = "ОтчётДубликатыБоксов.txt"
                 };
 
                 if (dialog.ShowDialog(this) == true)
@@ -54,29 +54,29 @@ namespace OpeningTask.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"�� ������� ��������� �����: {ex.Message}",
-                    "������", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Не удалось сохранить файл: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private static string BuildReport(IReadOnlyList<long> ids)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("Duplicate cuboids report");
+            sb.AppendLine("Отчёт о дубликатах боксов");
             sb.AppendLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             sb.AppendLine();
-            sb.AppendLine("Existing cuboid ids (duplicates detected):");
+            sb.AppendLine("ID существующих боксов (обнаружены дубликаты):");
 
             if (ids == null || ids.Count == 0)
             {
-                sb.AppendLine("(none)");
+                sb.AppendLine("(нет)");
                 return sb.ToString();
-            }
+            }   
 
             foreach (var id in ids)
             {
                 sb.AppendLine(id.ToString());
-            }
+            }   
 
             return sb.ToString();
         }

@@ -1015,6 +1015,30 @@ namespace OpeningTask.Services
             {
                 SetParameterByName(instance, "Дополнительная толщина 2", cuboidParams.Protrusion);
             }
+
+            // GP_01_ID - формат: [id MEP-элемента]-[id Host-элемента]
+            var cuboidId = GetCuboidId(intersection);
+            if (!SetStringParameterByGuid(instance, CuboidSettings.CuboidIdParamGuid, cuboidId))
+            {
+                SetStringParameterByName(instance, "GP_01_ID", cuboidId);
+            }
+
+            // Дата изменения - формат: ДД-ММ-ГГ hh:mm
+            var modificationDate = DateTime.Now.ToString("dd-MM-yy HH:mm");
+            if (!SetStringParameterByGuid(instance, CuboidSettings.ModificationDateParamGuid, modificationDate))
+            {
+                SetStringParameterByName(instance, "Дата изменения", modificationDate);
+            }
+
+            // Тип системы - значение из словаря по ключу из имени связанного файла
+            var systemType = GetSystemType(intersection);
+            if (!string.IsNullOrEmpty(systemType))
+            {
+                if (!SetStringParameterByGuid(instance, CuboidSettings.SystemTypeParamGuid, systemType))
+                {
+                    SetStringParameterByName(instance, "Тип системы", systemType);
+                }
+            }
         }
 
         /// <summary>
@@ -1045,6 +1069,124 @@ namespace OpeningTask.Services
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Установить строковый параметр по GUID
+        /// </summary>
+        /// <returns>true если параметр успешно установлен</returns>
+        private bool SetStringParameterByGuid(Element element, Guid paramGuid, string value)
+        {
+            var param = element.get_Parameter(paramGuid);
+            if (param != null && !param.IsReadOnly && param.StorageType == StorageType.String)
+            {
+                param.Set(value);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Установить строковый параметр по имени
+        /// </summary>
+        /// <returns>true если параметр успешно установлен</returns>
+        private bool SetStringParameterByName(Element element, string paramName, string value)
+        {
+            var param = element.LookupParameter(paramName);
+            if (param != null && !param.IsReadOnly && param.StorageType == StorageType.String)
+            {
+                param.Set(value);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Получение ID кубика в формате: [id MEP-элемента]-[id Host-элемента]
+        /// </summary>
+        private string GetCuboidId(IntersectionInfo intersection)
+        {
+            var mepId = intersection.MepElement?.Id?.Value ?? 0;
+            var hostId = intersection.HostElement?.Id?.Value ?? 0;
+            return $"{mepId}-{hostId}";
+        }
+
+        /// <summary>
+        /// Получение типа системы из имени связанного файла
+        /// </summary>
+        private string GetSystemType(IntersectionInfo intersection)
+        {
+            try
+            {
+                // Получаем имя связанного файла из MEP элемента
+                var linkedFileName = GetLinkedFileName(intersection);
+                if (string.IsNullOrEmpty(linkedFileName))
+                    return null;
+
+                RevitTrace.Info($"GetSystemType: linkedFileName={linkedFileName}");
+
+                // Ищем ключ в имени файла
+                foreach (var kvp in CuboidSettings.SystemTypeMapping)
+                {
+                    if (linkedFileName.IndexOf(kvp.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        RevitTrace.Info($"GetSystemType: found key={kvp.Key}, value={kvp.Value}");
+                        return kvp.Value;
+                    }
+                }
+
+                RevitTrace.Warn($"GetSystemType: no matching key found in fileName={linkedFileName}");
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("GetSystemType failed", ex);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Получение имени связанного файла MEP-элемента из информации о пересечении
+        /// </summary>
+        private string GetLinkedFileName(IntersectionInfo intersection)
+        {
+            try
+            {
+                // Используем MepLinkInstance - это связь, откуда взят MEP-элемент
+                if (intersection.MepLinkInstance != null)
+                {
+                    var linkDoc = intersection.MepLinkInstance.GetLinkDocument();
+                    if (linkDoc != null)
+                    {
+                        return Path.GetFileNameWithoutExtension(linkDoc.Title);
+                    }
+
+                    // Fallback: получаем имя из самого RevitLinkInstance
+                    var linkName = intersection.MepLinkInstance.Name;
+                    if (!string.IsNullOrEmpty(linkName))
+                    {
+                        // Имя может содержать путь и расширение, извлекаем только имя файла
+                        return Path.GetFileNameWithoutExtension(linkName);
+                    }
+                }
+
+                // Дополнительный fallback: если MepElement из связанного документа
+                if (intersection.MepElement?.Document != null)
+                {
+                    var doc = intersection.MepElement.Document;
+                    // Используем Title документа напрямую
+                    if (!string.IsNullOrEmpty(doc.Title))
+                    {
+                        return Path.GetFileNameWithoutExtension(doc.Title);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RevitTrace.Error("GetLinkedFileName failed", ex);
+            }
+
+            return null;
         }
 
         /// <summary>

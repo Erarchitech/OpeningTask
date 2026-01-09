@@ -113,7 +113,7 @@
                                 Visibility="{Binding IsMepSelectedMode, Converter={StaticResource BoolToVisibility}}"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <CheckBox Content="По фильтру" 
+                        <CheckBox Content="По параметрам" 
                                   IsChecked="{Binding IsMepFilterMode}"
                                   Style="{StaticResource ModernCheckBoxStyle}"
                                   FontWeight="Normal"/>
@@ -146,7 +146,7 @@
                                 Visibility="{Binding IsWallSelectedMode, Converter={StaticResource BoolToVisibility}}"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <CheckBox Content="По фильтру" 
+                        <CheckBox Content="По параметрам" 
                                   IsChecked="{Binding IsWallFilterMode}"
                                   Style="{StaticResource ModernCheckBoxStyle}"
                                   FontWeight="Normal"/>
@@ -179,7 +179,7 @@
                                 Visibility="{Binding IsFloorSelectedMode, Converter={StaticResource BoolToVisibility}}"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <CheckBox Content="По фильтру" 
+                        <CheckBox Content="По параметрам" 
                                   IsChecked="{Binding IsFloorFilterMode}"
                                   Style="{StaticResource ModernCheckBoxStyle}"
                                   FontWeight="Normal"/>
@@ -198,13 +198,13 @@
         </GroupBox>
 
         <!-- Секция кубиков -->
-        <GroupBox Header="Кубики" 
+        <GroupBox Header="Боксы" 
                   FontWeight="Bold" 
                   Style="{StaticResource ModernGroupBoxStyle}"
                   Grid.Row="2" 
                   Margin="0,0,0,10">
             <StackPanel Margin="5">
-                <TextBlock Text="Параметры семейств кубиков" FontWeight="Bold" Margin="0,0,0,10"/>
+                <TextBlock Text="Параметры семейств боксов" FontWeight="Bold" Margin="0,0,0,10"/>
 
                 <!-- Параметры округления -->
                 <WrapPanel Margin="0,0,0,15">
@@ -320,7 +320,7 @@
                         Width="100" 
                         Height="35"
                         Margin="0,0,10,0"/>
-                <Button Content="OK" 
+                <Button Content="ОК" 
                         Command="{Binding OkCommand}"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Width="100" 

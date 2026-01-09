@@ -29,6 +29,7 @@ namespace OpeningTask.Models
         private bool _isFilterEnabled;
         private int _elementCount;
         private List<ElementId> _selectedTypeIds = new List<ElementId>();
+        private List<string> _selectedTypeNames = new List<string>();
         private Dictionary<string, List<string>> _selectedParameterValues = new Dictionary<string, List<string>>();
         private List<ElementId> _filteredElementIds = new List<ElementId>();
         private List<LinkedElementInfo> _selectedLinkedElements = new List<LinkedElementInfo>();
@@ -70,6 +71,15 @@ namespace OpeningTask.Models
         }
 
         /// <summary>
+        /// Selected type names (for filtering across different linked models)
+        /// </summary>
+        public List<string> SelectedTypeNames
+        {
+            get => _selectedTypeNames;
+            set => SetProperty(ref _selectedTypeNames, value);
+        }
+
+        /// <summary>
         /// Selected parameter values (key - parameter name, value - list of values)
         /// </summary>
         public Dictionary<string, List<string>> SelectedParameterValues
@@ -105,6 +115,7 @@ namespace OpeningTask.Models
             IsFilterEnabled = false;
             ElementCount = 0;
             SelectedTypeIds.Clear();
+            SelectedTypeNames.Clear();
             SelectedParameterValues.Clear();
             FilteredElementIds.Clear();
             SelectedLinkedElements.Clear();

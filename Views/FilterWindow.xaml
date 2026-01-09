@@ -4,141 +4,141 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="{Binding Title}" 
-        Height="550" Width="500" 
+        Title="{Binding Title}"
+        Height="550" Width="500"
         ResizeMode="CanResize"
         MinHeight="400" MinWidth="400"
         WindowStartupLocation="CenterOwner"
         Background="#FAFAFA">
 
-    <Window.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/OpeningTask;component/Resources/Styles.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
-    </Window.Resources>
+	<Window.Resources>
+		<ResourceDictionary>
+			<ResourceDictionary.MergedDictionaries>
+				<ResourceDictionary Source="/OpeningTask;component/Resources/Styles.xaml"/>
+			</ResourceDictionary.MergedDictionaries>
+		</ResourceDictionary>
+	</Window.Resources>
 
-    <Grid Margin="15">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+	<Grid Margin="15">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
 
-        <!-- TabControl with Types and Parameters tabs -->
-        <TabControl Grid.Row="0" 
+		<!-- TabControl with Types and Parameters tabs -->
+		<TabControl Grid.Row="0"
                     SelectedIndex="{Binding SelectedTabIndex}"
                     Style="{StaticResource ModernTabControlStyle}">
-            
-            <!-- Types Tab -->
-            <TabItem Header="Tipy" Style="{StaticResource ModernTabItemStyle}">
-                <Grid Margin="10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
 
-                    <!-- Selection buttons -->
-                    <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
-                        <Button Content="Select All" 
+			<!-- Types Tab -->
+			<TabItem Header="Типы" Style="{StaticResource ModernTabItemStyle}">
+				<Grid Margin="10">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
+
+					<!-- Selection buttons -->
+					<StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
+						<Button Content="Выбрать все"
                                 Command="{Binding SelectAllTypesCommand}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Padding="10,5"
                                 Margin="0,0,10,0"/>
-                        <Button Content="Deselect All" 
+						<Button Content="Снять выделение"
                                 Command="{Binding DeselectAllTypesCommand}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Padding="10,5"/>
-                    </StackPanel>
+					</StackPanel>
 
-                    <!-- TreeView with types -->
-                    <TreeView Grid.Row="1" 
+					<!-- TreeView with types -->
+					<TreeView Grid.Row="1"
                               ItemsSource="{Binding TypeNodes}"
                               Style="{StaticResource ModernTreeViewStyle}">
-                        <TreeView.ItemContainerStyle>
-                            <Style TargetType="TreeViewItem">
-                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-                            </Style>
-                        </TreeView.ItemContainerStyle>
-                        <TreeView.ItemTemplate>
-                            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" 
+						<TreeView.ItemContainerStyle>
+							<Style TargetType="TreeViewItem">
+								<Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+							</Style>
+						</TreeView.ItemContainerStyle>
+						<TreeView.ItemTemplate>
+							<HierarchicalDataTemplate ItemsSource="{Binding Children}">
+								<StackPanel Orientation="Horizontal">
+									<CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
                                               IsThreeState="{Binding IsThreeState}"
                                               VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding Name}" 
-                                               Margin="5,0,0,0" 
+									<TextBlock Text="{Binding Name}"
+                                               Margin="5,0,0,0"
                                                VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </HierarchicalDataTemplate>
-                        </TreeView.ItemTemplate>
-                    </TreeView>
-                </Grid>
-            </TabItem>
+								</StackPanel>
+							</HierarchicalDataTemplate>
+						</TreeView.ItemTemplate>
+					</TreeView>
+				</Grid>
+			</TabItem>
 
-            <!-- Parameters Tab -->
-            <TabItem Header="Parametry" Style="{StaticResource ModernTabItemStyle}">
-                <Grid Margin="10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+			<!-- Parameters Tab -->
+			<TabItem Header="Параметры" Style="{StaticResource ModernTabItemStyle}">
+				<Grid Margin="10">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
 
-                    <!-- Selection buttons -->
-                    <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
-                        <Button Content="Select All" 
+					<!-- Selection buttons -->
+					<StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
+						<Button Content="Выбрать все"
                                 Command="{Binding SelectAllParametersCommand}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Padding="10,5"
                                 Margin="0,0,10,0"/>
-                        <Button Content="Deselect All" 
+						<Button Content="Снять выделение"
                                 Command="{Binding DeselectAllParametersCommand}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Padding="10,5"/>
-                    </StackPanel>
+					</StackPanel>
 
-                    <!-- TreeView with parameters -->
-                    <TreeView Grid.Row="1" 
+					<!-- TreeView with parameters -->
+					<TreeView Grid.Row="1"
                               ItemsSource="{Binding ParameterNodes}"
                               Style="{StaticResource ModernTreeViewStyle}">
-                        <TreeView.ItemContainerStyle>
-                            <Style TargetType="TreeViewItem">
-                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-                            </Style>
-                        </TreeView.ItemContainerStyle>
-                        <TreeView.ItemTemplate>
-                            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" 
+						<TreeView.ItemContainerStyle>
+							<Style TargetType="TreeViewItem">
+								<Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+							</Style>
+						</TreeView.ItemContainerStyle>
+						<TreeView.ItemTemplate>
+							<HierarchicalDataTemplate ItemsSource="{Binding Children}">
+								<StackPanel Orientation="Horizontal">
+									<CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
                                               IsThreeState="{Binding IsThreeState}"
                                               VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding Name}" 
-                                               Margin="5,0,0,0" 
+									<TextBlock Text="{Binding Name}"
+                                               Margin="5,0,0,0"
                                                VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </HierarchicalDataTemplate>
-                        </TreeView.ItemTemplate>
-                    </TreeView>
-                </Grid>
-            </TabItem>
-        </TabControl>
+								</StackPanel>
+							</HierarchicalDataTemplate>
+						</TreeView.ItemTemplate>
+					</TreeView>
+				</Grid>
+			</TabItem>
+		</TabControl>
 
-        <!-- Bottom panel with buttons -->
-        <StackPanel Grid.Row="1" 
-                    Orientation="Horizontal" 
+		<!-- Bottom panel with buttons -->
+		<StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="0,15,0,0">
-            <Button Content="Cancel" 
+			<Button Content="Отмена"
                     Command="{Binding CancelCommand}"
                     Style="{StaticResource SecondaryButtonStyle}"
-                    Width="100" 
+                    Width="100"
                     Height="35"
                     Margin="0,0,10,0"/>
-            <Button Content="Apply Filter" 
+			<Button Content="Применить фильтр"
                     Command="{Binding ApplyFilterCommand}"
                     Style="{StaticResource PrimaryButtonStyle}"
-                    Width="130" 
+                    Width="150"
                     Height="35"/>
-        </StackPanel>
-    </Grid>
+		</StackPanel>
+	</Grid>
 </Window>

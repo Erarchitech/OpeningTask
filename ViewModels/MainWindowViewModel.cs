@@ -184,7 +184,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        public string MepElementCountText => $"MEP Systems ({MepElementCount})";
+        public string MepElementCountText => $"Элементы ИС ({MepElementCount})";
 
         #endregion
 
@@ -233,7 +233,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        public string WallElementCountText => $"Walls ({WallElementCount})";
+        public string WallElementCountText => $"Стены ({WallElementCount})";
 
         #endregion
 
@@ -282,7 +282,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        public string FloorElementCountText => $"Floors ({FloorElementCount})";
+        public string FloorElementCountText => $"Перекрытия ({FloorElementCount})";
 
         #endregion
 
@@ -602,7 +602,7 @@ namespace OpeningTask.ViewModels
                 selectedArKrModels, 
                 new[] { BuiltInCategory.OST_Walls }, 
                 _wallFilterSettings,
-                "Wall Filter",
+                "Фильтр стен",
                 preSelectedElements);
 
             var filterWindow = new Views.FilterWindow(filterViewModel);
@@ -634,7 +634,7 @@ namespace OpeningTask.ViewModels
                 selectedArKrModels, 
                 new[] { BuiltInCategory.OST_Floors }, 
                 _floorFilterSettings,
-                "Floor Filter",
+                "Фильтр перекрытий",
                 preSelectedElements);
 
             var filterWindow = new Views.FilterWindow(filterViewModel);

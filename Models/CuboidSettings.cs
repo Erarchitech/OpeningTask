@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace OpeningTask.Models
 {
@@ -132,6 +133,35 @@ namespace OpeningTask.Models
         /// GUID параметра "Дополнительная толщина 2"
         /// </summary>
         public static readonly Guid AdditionalThickness2ParamGuid = new Guid("1362f685-6d3d-4b3c-8a6d-51c59e1fd44b");
+
+        /// <summary>
+        /// GUID параметра "GP_01_ID" для записи ID кубика в формате [id MEP]-[id Host]
+        /// </summary>
+        public static readonly Guid CuboidIdParamGuid = new Guid("a1fdacc3-46cf-4870-acec-d6d68282cd13");
+
+        /// <summary>
+        /// GUID параметра "Дата изменения"
+        /// </summary>
+        public static readonly Guid ModificationDateParamGuid = new Guid("861bee5b-7942-4324-9169-d5f047acd076");
+
+        /// <summary>
+        /// GUID параметра "Тип системы"
+        /// </summary>
+        public static readonly Guid SystemTypeParamGuid = new Guid("9d8b56dd-fef6-4827-b18d-db548d5bd3ba");
+
+        /// <summary>
+        /// Словарь соответствия ключей в имени файла типам систем
+        /// </summary>
+        public static readonly Dictionary<string, string> SystemTypeMapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "_AR_", "АР" },
+            { "_ST_", "КР" },
+            { "_KR_", "КР" },
+            { "_SS_", "КМ" },
+            { "_KM_", "КМ" },
+            { "_HVAC_", "ОВ" },
+            { "_WSS_", "ВК" }
+        };
 
         /// <summary>
         /// Получить имя файла семейства кубика

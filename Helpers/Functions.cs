@@ -243,11 +243,17 @@ namespace OpeningTask.Helpers
                 .WhereElementIsNotElementType()
                 .ToList();
 
-            // Filter by types
-            if (settings.SelectedTypeIds.Any())
+            // Filter by type names (works across different linked models)
+            if (settings.SelectedTypeNames != null && settings.SelectedTypeNames.Any())
             {
                 elements = elements
-                    .Where(e => settings.SelectedTypeIds.Contains(e.GetTypeId()))
+                    .Where(e =>
+                    {
+                        var typeId = e.GetTypeId();
+                        if (typeId == ElementId.InvalidElementId) return false;
+                        var typeElement = doc.GetElement(typeId);
+                        return typeElement != null && settings.SelectedTypeNames.Contains(typeElement.Name);
+                    })
                     .ToList();
             }
 

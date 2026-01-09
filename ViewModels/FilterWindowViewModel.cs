@@ -386,6 +386,18 @@ namespace OpeningTask.ViewModels
         }
 
         /// <summary>
+        /// Get selected type names
+        /// </summary>
+        private List<string> GetSelectedTypeNames()
+        {
+            return _typeNodes
+                .SelectMany(c => c.Children)
+                .Where(t => t.IsChecked == true)
+                .Select(t => t.Name)
+                .ToList();
+        }
+
+        /// <summary>
         /// Get selected parameter values
         /// </summary>
         private Dictionary<string, List<string>> GetSelectedParameterValues()
@@ -413,17 +425,22 @@ namespace OpeningTask.ViewModels
         /// </summary>
         private int CountFilteredElements()
         {
-            var selectedTypeIds = GetSelectedTypeIds();
+            var selectedTypeNames = GetSelectedTypeNames();
             var selectedParamValues = GetSelectedParameterValues();
 
             var elements = GetElementsToFilter();
 
-            // Filter by types
-            if (selectedTypeIds.Any())
+            // Filter by type names
+            if (selectedTypeNames.Any())
             {
-                var typeIdValues = selectedTypeIds.Select(id => id.Value).ToHashSet();
                 elements = elements
-                    .Where(e => typeIdValues.Contains(e.GetTypeId().Value))
+                    .Where(e =>
+                    {
+                        var typeId = e.GetTypeId();
+                        if (typeId == ElementId.InvalidElementId) return false;
+                        var typeElement = e.Document.GetElement(typeId);
+                        return typeElement != null && selectedTypeNames.Contains(typeElement.Name);
+                    })
                     .ToList();
             }
 
@@ -505,6 +522,7 @@ namespace OpeningTask.ViewModels
         private void ApplyFilter()
         {
             _filterSettings.SelectedTypeIds = GetSelectedTypeIds();
+            _filterSettings.SelectedTypeNames = GetSelectedTypeNames();
             _filterSettings.SelectedParameterValues = GetSelectedParameterValues();
             _filterSettings.ElementCount = CountFilteredElements();
             _filterSettings.IsFilterEnabled = true;
