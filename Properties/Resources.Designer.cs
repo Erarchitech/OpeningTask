@@ -63,9 +63,39 @@ namespace OpeningTask.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap Box_Circular {
+            get {
+                object obj = ResourceManager.GetObject("Box_Circular", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap Box_Rectangular {
+            get {
+                object obj = ResourceManager.GetObject("Box_Rectangular", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap gear_24 {
             get {
                 object obj = ResourceManager.GetObject("gear_24", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap OpeningTaskButton {
+            get {
+                object obj = ResourceManager.GetObject("OpeningTaskButton", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

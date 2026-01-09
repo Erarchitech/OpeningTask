@@ -121,6 +121,21 @@
   <ItemGroup>
     <Resource Include="Resources\Images\gear-24.png" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Box_Circular.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Box_Rectangular.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\Images\Box_Circular.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\Images\Box_Rectangular.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\Images\OpeningTaskButton.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>if exist "$(AppData)\Autodesk\REVIT\Addins\2024" copy "$(ProjectDir)*.addin" "$(AppData)\Autodesk\REVIT\Addins\2024"

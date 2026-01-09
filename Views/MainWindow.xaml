@@ -5,8 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Задание на отверстия" 
-        Height="750" Width="920" 
-        ResizeMode="NoResize" 
+        Height="750" Width="920"
+        MinHeight="650" MinWidth="800"
+        ResizeMode="CanResizeWithGrip" 
         WindowStartupLocation="CenterScreen"
         Background="#FAFAFA">
 
@@ -30,13 +31,18 @@
         </Grid.RowDefinitions>
 
         <!-- Секция модели -->
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Grid.Row="0" Margin="0,0,0,10">
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            
             <!-- Модель инженерных систем -->
-            <GroupBox Header="Модель инженерных систем" 
+            <GroupBox Grid.Column="0"
+                      Header="Модель инженерных систем" 
                       FontWeight="Bold" 
                       Style="{StaticResource ModernGroupBoxStyle}"
-                      Margin="0,0,10,0" 
-                      Width="435">
+                      Margin="0,0,5,0">
                 <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
                     <ItemsControl x:Name="MepModelsControl" ItemsSource="{Binding MepLinkedModels}">
                         <ItemsControl.ItemsPanel>
@@ -58,10 +64,11 @@
             </GroupBox>
 
             <!-- Модель AP / KP -->
-            <GroupBox Header="Модель AP / KP" 
+            <GroupBox Grid.Column="1"
+                      Header="Модель AP / KP" 
                       FontWeight="Bold" 
                       Style="{StaticResource ModernGroupBoxStyle}"
-                      Width="435">
+                      Margin="5,0,0,0">
                 <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
                     <ItemsControl x:Name="ArKrModelsControl" ItemsSource="{Binding ArKrLinkedModels}">
                         <ItemsControl.ItemsPanel>
@@ -81,7 +88,7 @@
                     </ItemsControl>
                 </ScrollViewer>
             </GroupBox>
-        </StackPanel>
+        </Grid>
 
         <!-- Секция фильтров -->
         <GroupBox Header="Фильтры" 
@@ -202,14 +209,20 @@
                   FontWeight="Bold" 
                   Style="{StaticResource ModernGroupBoxStyle}"
                   Grid.Row="2" 
-                  Margin="0,0,0,10">
-            <StackPanel Margin="5">
-                <TextBlock Text="Параметры семейств боксов" FontWeight="Bold" Margin="0,0,0,10"/>
+                  Margin="0,0,0,10"
+                  VerticalAlignment="Stretch">
+            <Grid Margin="5">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Параметры семейств боксов" FontWeight="Bold" Margin="0,0,0,10"/>
 
                 <!-- Параметры округления -->
-                <WrapPanel Margin="0,0,0,15">
+                <WrapPanel Grid.Row="1" Margin="0,0,0,15">
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,5">
-                        <TextBlock Text="Округление габаритов:" 
+                        <TextBlock Text="Округление габаритов А:" 
                                    VerticalAlignment="Center" 
                                    FontWeight="Normal"
                                    Margin="0,0,8,0"/>
@@ -220,7 +233,7 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,20,5">
-                        <TextBlock Text="Мин. отступ от элемента:" 
+                        <TextBlock Text="Мин. отступ от элемента В:" 
                                    VerticalAlignment="Center" 
                                    FontWeight="Normal"
                                    Margin="0,0,8,0"/>
@@ -243,24 +256,37 @@
                 </WrapPanel>
 
                 <!-- Типы кубиков -->
-                <UniformGrid Columns="4" Rows="1" HorizontalAlignment="Center" Margin="0,10,0,0">
+                <UniformGrid Grid.Row="2" Columns="3" Rows="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,10,0,0">
                     <!-- Трубы -->
                     <Border Style="{StaticResource SectionBorderStyle}" Margin="5" MinWidth="180">
                         <StackPanel>
                             <TextBlock Text="Трубы" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                            <Border Height="60" Background="#F8F8F8" CornerRadius="3" Margin="0,0,0,10">
-                                <TextBlock Text="🔵" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <CheckBox Content="круглые" 
-                                      IsChecked="{Binding UsePipeRound}" 
-                                      HorizontalAlignment="Center"
-                                      Style="{StaticResource ModernCheckBoxStyle}"
-                                      FontWeight="Normal"/>
-                            <CheckBox Content="прямоугольные"   
-                                      IsChecked="{Binding UsePipeRectangular}" 
-                                      HorizontalAlignment="Center"
-                                      Style="{StaticResource ModernCheckBoxStyle}"
-                                      FontWeight="Normal"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                    <Image Source="/OpeningTask;component/Resources/Images/Box_Circular.png" 
+                                           Width="100" Height="100" 
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                           Margin="0,0,0,5"/>
+                                    <CheckBox IsChecked="{Binding UsePipeRound}" 
+                                              HorizontalAlignment="Center"
+                                              Style="{StaticResource ModernCheckBoxStyle}"
+                                              FontWeight="Normal"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                    <Image Source="/OpeningTask;component/Resources/Images/Box_Rectangular.png" 
+                                           Width="100" Height="100" 
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                           Margin="0,0,0,5"/>
+                                    <CheckBox IsChecked="{Binding UsePipeRectangular}" 
+                                              HorizontalAlignment="Center"
+                                              Style="{StaticResource ModernCheckBoxStyle}"
+                                              FontWeight="Normal"/>
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </Border>
 
@@ -268,19 +294,32 @@
                     <Border Style="{StaticResource SectionBorderStyle}" Margin="5" MinWidth="180">
                         <StackPanel>
                             <TextBlock Text="Воздуховоды" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                            <Border Height="60" Background="#F8F8F8" CornerRadius="3" Margin="0,0,0,10">
-                                <TextBlock Text="🟢" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <CheckBox Content="круглые" 
-                                      IsChecked="{Binding UseDuctRound}" 
-                                      HorizontalAlignment="Center"
-                                      Style="{StaticResource ModernCheckBoxStyle}"
-                                      FontWeight="Normal"/>
-                            <CheckBox Content="прямоугольные" 
-                                      IsChecked="{Binding UseDuctRectangular}" 
-                                      HorizontalAlignment="Center"
-                                      Style="{StaticResource ModernCheckBoxStyle}"
-                                      FontWeight="Normal"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                    <Image Source="/OpeningTask;component/Resources/Images/Box_Circular.png" 
+                                           Width="100" Height="100" 
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                           Margin="0,0,0,5"/>
+                                    <CheckBox IsChecked="{Binding UseDuctRound}" 
+                                              HorizontalAlignment="Center"
+                                              Style="{StaticResource ModernCheckBoxStyle}"
+                                              FontWeight="Normal"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                    <Image Source="/OpeningTask;component/Resources/Images/Box_Rectangular.png" 
+                                           Width="100" Height="100" 
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                           Margin="0,0,0,5"/>
+                                    <CheckBox IsChecked="{Binding UseDuctRectangular}" 
+                                              HorizontalAlignment="Center"
+                                              Style="{StaticResource ModernCheckBoxStyle}"
+                                              FontWeight="Normal"/>
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </Border>
 
@@ -288,18 +327,15 @@
                     <Border Style="{StaticResource SectionBorderStyle}" Margin="5" MinWidth="180">
                         <StackPanel>
                             <TextBlock Text="Лотки" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                            <Border Height="60" Background="#F8F8F8" CornerRadius="3" Margin="0,0,0,10">
-                                <TextBlock Text="🟨" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <CheckBox Content="все" 
-                                      IsChecked="{Binding UseTrayAll}" 
-                                      HorizontalAlignment="Center"
-                                      Style="{StaticResource ModernCheckBoxStyle}"
-                                      FontWeight="Normal"/>
+                            <Image Source="/OpeningTask;component/Resources/Images/Box_Rectangular.png" 
+                                   Width="100" Height="100" 
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,10"/>
                         </StackPanel>
                     </Border>
                 </UniformGrid>
-            </StackPanel>
+            </Grid>
         </GroupBox>
 
         <!-- Нижняя панель -->
