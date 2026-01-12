@@ -10,9 +10,7 @@ using System.Windows.Input;
 
 namespace OpeningTask.ViewModels
 {
-    /// <summary>
-    /// ViewModel for filter window
-    /// </summary>
+    // ViewModel для окна фильтрации
     public class FilterWindowViewModel : BaseViewModel
     {
         private readonly List<LinkedModelInfo> _linkedModels;
@@ -49,7 +47,7 @@ namespace OpeningTask.ViewModels
             _typeNodes = new ObservableCollection<TreeNode>();
             _parameterNodes = new ObservableCollection<TreeNode>();
 
-            // Initialize commands
+            // Инициализация команд
             ApplyFilterCommand = new RelayCommand(ApplyFilter);
             CancelCommand = new RelayCommand(Cancel);
             SelectAllTypesCommand = new RelayCommand(SelectAllTypes);
@@ -57,7 +55,7 @@ namespace OpeningTask.ViewModels
             SelectAllParametersCommand = new RelayCommand(SelectAllParameters);
             DeselectAllParametersCommand = new RelayCommand(DeselectAllParameters);
 
-            // Load data
+            // Загрузка данных
             LoadTypes();
         }
 
@@ -93,7 +91,7 @@ namespace OpeningTask.ViewModels
             {
                 if (SetProperty(ref _selectedTabIndex, value))
                 {
-                    if (value == 1) // Parameters tab
+                    if (value == 1)
                     {
                         LoadParameters();
                     }
@@ -111,22 +109,18 @@ namespace OpeningTask.ViewModels
 
         #region Methods
 
-        /// <summary>
-        /// Get valid linked models (loaded ones)
-        /// </summary>
+        // Получение доступных связанных моделей
         private IEnumerable<LinkedModelInfo> GetValidLinkedModels()
         {
             return _linkedModels.Where(m => m.IsLoaded);
         }
 
-        /// <summary>
-        /// Get elements to filter - either pre-selected or from linked models
-        /// </summary>
+        // Получение элементов для фильтрации
         private List<Element> GetElementsToFilter()
         {
             var elements = new List<Element>();
 
-            // If we have pre-selected elements, use only those
+            // Если есть предварительно выбранные элементы, используем только их
             if (_preSelectedElements != null && _preSelectedElements.Any())
             {
                 elements.AddRange(_preSelectedElements
@@ -135,7 +129,7 @@ namespace OpeningTask.ViewModels
             }
             else
             {
-                // Otherwise, get all elements from linked models
+                // Иначе получаем все элементы из связанных моделей
                 var validModels = GetValidLinkedModels().ToList();
 
                 foreach (var linkedModel in validModels)
@@ -155,7 +149,7 @@ namespace OpeningTask.ViewModels
                     }
                     catch (Exception)
                     {
-                        // Skip if error
+                        // Пропуск при ошибке
                     }
                 }
             }
@@ -163,14 +157,12 @@ namespace OpeningTask.ViewModels
             return elements;
         }
 
-        /// <summary>
-        /// Load element types
-        /// </summary>
+        // Загрузка типов элементов
         private void LoadTypes()
         {
             _typeNodes.Clear();
 
-            // Get types from pre-selected elements or from linked models
+            // Получение типов из предварительно выбранных элементов или из связанных моделей
             if (_preSelectedElements != null && _preSelectedElements.Any())
             {
                 LoadTypesFromPreSelectedElements();
@@ -180,16 +172,14 @@ namespace OpeningTask.ViewModels
                 LoadTypesFromLinkedModels();
             }
 
-            // Update parent node states
+            // Обновление состояния родительских узлов
             foreach (var categoryNode in _typeNodes)
             {
                 UpdateCategoryNodeState(categoryNode);
             }
         }
 
-        /// <summary>
-        /// Load types from pre-selected elements
-        /// </summary>
+        // Загрузка типов из предварительно выбранных элементов
         private void LoadTypesFromPreSelectedElements()
         {
             var typesByCategory = new Dictionary<string, Dictionary<string, ElementId>>();
@@ -222,7 +212,7 @@ namespace OpeningTask.ViewModels
                 }
             }
 
-            // Create tree nodes
+            // Создание узлов дерева
             foreach (var category in typesByCategory.OrderBy(c => c.Key))
             {
                 var categoryNode = new TreeNode(category.Key) { IsExpanded = true };
@@ -232,7 +222,7 @@ namespace OpeningTask.ViewModels
                 {
                     var typeNode = categoryNode.AddChild(type.Key, type.Value);
 
-                    // Restore previous selection
+                    // Восстановление предыдущего выбора
                     if (_filterSettings.SelectedTypeIds.Any(id => id.Value == type.Value.Value))
                     {
                         typeNode.SetCheckedSilent(true);
@@ -241,9 +231,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Load types from linked models
-        /// </summary>
+        // Загрузка типов из связанных моделей
         private void LoadTypesFromLinkedModels()
         {
             var validModels = GetValidLinkedModels().ToList();
@@ -262,7 +250,7 @@ namespace OpeningTask.ViewModels
                 {
                     var categoryName = Functions.GetCategoryName(doc, category);
 
-                    // Check if category already exists in tree
+                    // Проверка, существует ли уже категория в дереве
                     var categoryNode = _typeNodes.FirstOrDefault(n => n.Name == categoryName);
                     if (categoryNode == null)
                     {
@@ -270,7 +258,7 @@ namespace OpeningTask.ViewModels
                         _typeNodes.Add(categoryNode);
                     }
 
-                    // Get types for category
+                    // Получение типов для категории
                     try
                     {
                         var types = new FilteredElementCollector(doc)
@@ -282,12 +270,12 @@ namespace OpeningTask.ViewModels
 
                         foreach (var type in types)
                         {
-                            // Check if type already exists
+                            // Проверка, существует ли уже тип
                             if (!categoryNode.Children.Any(c => c.Name == type.Name))
                             {
                                 var typeNode = categoryNode.AddChild(type.Name, type.Id);
 
-                                // Restore previous selection
+                                // Восстановление предыдущего выбора
                                 if (_filterSettings.SelectedTypeIds.Any(id => id.Value == type.Id.Value))
                                 {
                                     typeNode.SetCheckedSilent(true);
@@ -297,36 +285,34 @@ namespace OpeningTask.ViewModels
                     }
                     catch (Exception)
                     {
-                        // Skip if error getting types
+                        // Пропуск при ошибке получения типов
                     }
                 }
             }
         }
 
-        /// <summary>
-        /// Load parameters for selected types
-        /// </summary>
+        // Загрузка параметров для выбранных типов
         private void LoadParameters()
         {
             _parameterNodes.Clear();
 
-            // Get selected types
+            // Получение выбранных типов
             var selectedTypeIds = GetSelectedTypeIds();
 
-            // Get elements to analyze
+            // Получение элементов для анализа
             var elements = GetElementsToFilter();
 
-            // Filter by selected types if any
+            // Фильтрация по выбранным типам
             if (selectedTypeIds.Any())
             {
                 var typeIdValues = selectedTypeIds.Select(id => id.Value).ToHashSet();
                 elements = elements.Where(e => typeIdValues.Contains(e.GetTypeId().Value)).ToList();
             }
 
-            // Collect parameters and their values
+            // Сбор параметров и их значений
             var parameterValues = new Dictionary<string, HashSet<string>>();
 
-            foreach (var element in elements.Take(1000)) // Limit for performance
+            foreach (var element in elements.Take(1000))
             {
                 foreach (Parameter param in element.Parameters)
                 {
@@ -347,7 +333,7 @@ namespace OpeningTask.ViewModels
                 }
             }
 
-            // Create parameter tree nodes
+            // Создание узлов дерева параметров
             foreach (var param in parameterValues.OrderBy(p => p.Key))
             {
                 var paramNode = new TreeNode(param.Key) { IsExpanded = false };
@@ -356,7 +342,7 @@ namespace OpeningTask.ViewModels
                 {
                     var valueNode = paramNode.AddChild(value, value);
 
-                    // Restore previous selection
+                    // Восстановление предыдущего выбора
                     if (_filterSettings.SelectedParameterValues.TryGetValue(param.Key, out var selectedValues))
                     {
                         if (selectedValues.Contains(value))
@@ -366,16 +352,14 @@ namespace OpeningTask.ViewModels
                     }
                 }
 
-                // Update parent node state
+                // Обновление состояния родительского узла
                 UpdateCategoryNodeState(paramNode);
 
                 _parameterNodes.Add(paramNode);
             }
         }
 
-        /// <summary>
-        /// Get selected type IDs
-        /// </summary>
+        // Получение ID выбранных типов
         private List<ElementId> GetSelectedTypeIds()
         {
             return _typeNodes
@@ -385,9 +369,7 @@ namespace OpeningTask.ViewModels
                 .ToList();
         }
 
-        /// <summary>
-        /// Get selected type names
-        /// </summary>
+        // Получение имён выбранных типов
         private List<string> GetSelectedTypeNames()
         {
             return _typeNodes
@@ -397,9 +379,7 @@ namespace OpeningTask.ViewModels
                 .ToList();
         }
 
-        /// <summary>
-        /// Get selected parameter values
-        /// </summary>
+        // Получение выбранных значений параметров
         private Dictionary<string, List<string>> GetSelectedParameterValues()
         {
             var result = new Dictionary<string, List<string>>();
@@ -420,9 +400,7 @@ namespace OpeningTask.ViewModels
             return result;
         }
 
-        /// <summary>
-        /// Count filtered elements
-        /// </summary>
+        // Подсчёт отфильтрованных элементов
         private int CountFilteredElements()
         {
             var selectedTypeNames = GetSelectedTypeNames();
@@ -430,7 +408,7 @@ namespace OpeningTask.ViewModels
 
             var elements = GetElementsToFilter();
 
-            // Filter by type names
+            // Фильтрация по именам типов
             if (selectedTypeNames.Any())
             {
                 elements = elements
@@ -444,7 +422,7 @@ namespace OpeningTask.ViewModels
                     .ToList();
             }
 
-            // Filter by parameters
+            // Фильтрация по параметрам
             if (selectedParamValues.Any())
             {
                 elements = elements.Where(e =>
@@ -467,9 +445,7 @@ namespace OpeningTask.ViewModels
             return elements.Count;
         }
 
-        /// <summary>
-        /// Get parameter string value
-        /// </summary>
+        // Получение строкового значения параметра
         private string GetParameterStringValue(Parameter param)
         {
             if (param == null) return null;
@@ -492,9 +468,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Update category node state based on children
-        /// </summary>
+        // Обновление состояния узла категории на основе дочерних
         private void UpdateCategoryNodeState(TreeNode categoryNode)
         {
             if (!categoryNode.Children.Any()) return;
@@ -516,9 +490,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Apply filter
-        /// </summary>
+        // Применение фильтра
         private void ApplyFilter()
         {
             _filterSettings.SelectedTypeIds = GetSelectedTypeIds();
@@ -534,9 +506,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Cancel
-        /// </summary>
+        // Отмена
         private void Cancel()
         {
             if (_window != null)
@@ -546,9 +516,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Select all types
-        /// </summary>
+        // Выбрать все типы
         private void SelectAllTypes()
         {
             foreach (var categoryNode in _typeNodes)
@@ -557,9 +525,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Deselect all types
-        /// </summary>
+        // Снять выбор со всех типов
         private void DeselectAllTypes()
         {
             foreach (var categoryNode in _typeNodes)
@@ -568,9 +534,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Select all parameters
-        /// </summary>
+        // Выбрать все параметры
         private void SelectAllParameters()
         {
             foreach (var paramNode in _parameterNodes)
@@ -579,9 +543,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Deselect all parameters
-        /// </summary>
+        // Снять выбор со всех параметров
         private void DeselectAllParameters()
         {
             foreach (var paramNode in _parameterNodes)

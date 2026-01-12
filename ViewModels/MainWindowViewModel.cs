@@ -12,49 +12,47 @@ using System.Windows.Input;
 
 namespace OpeningTask.ViewModels
 {
-    /// <summary>
-    /// ViewModel for main plugin window
-    /// </summary>
+    // ViewModel для главного окна плагина
     public class MainWindowViewModel : BaseViewModel
     {
         private readonly UIDocument _uiDoc;
         private readonly Document _doc;
         private Window _window;
 
-        // External event for Revit API operations
+        // Внешнее событие для операций Revit API
         private ExternalEvent _externalEvent;
         private CuboidPlacementEventHandler _eventHandler;
 
-        // Model section
+        // Секция моделей
         private ObservableCollection<LinkedModelInfo> _mepLinkedModels;
         private ObservableCollection<LinkedModelInfo> _arKrLinkedModels;
 
-        // Filter section - MEP systems
+        // Секция фильтра - MEP системы
         private bool _isMepSelectedMode;
         private bool _isMepFilterMode;
         private FilterSettings _mepFilterSettings;
         private int _mepElementCount;
 
-        // Filter section - walls
+        // Секция фильтра - стены
         private bool _isWallSelectedMode;
         private bool _isWallFilterMode;
         private FilterSettings _wallFilterSettings;
         private int _wallElementCount;
 
-        // Filter section - floors
+        // Секция фильтра - перекрытия
         private bool _isFloorSelectedMode;
         private bool _isFloorFilterMode;
         private FilterSettings _floorFilterSettings;
         private int _floorElementCount;
 
-        // Cuboid section
+        // Секция боксов
         private bool _roundDimensions;
         private int _roundDimensionsValue = 50;
         private bool _roundElevation;
         private int _roundElevationValue = 10;
         private bool _mergeIntersecting;
 
-        // Cuboid types
+        // Типы боксов
         private bool _usePipeRound = true;
         private bool _usePipeRectangular;
         private bool _useDuctRound;
@@ -65,7 +63,7 @@ namespace OpeningTask.ViewModels
         private int _minOffset = 30;
         private int _protrusion = 100;
 
-        // Commands
+        // Команды
         public ICommand OpenMepFilterCommand { get; }
         public ICommand OpenWallFilterCommand { get; }
         public ICommand OpenFloorFilterCommand { get; }
@@ -81,16 +79,16 @@ namespace OpeningTask.ViewModels
             _uiDoc = uiDoc ?? throw new ArgumentNullException(nameof(uiDoc));
             _doc = uiDoc.Document;
 
-            // Initialize collections
+            // Инициализация коллекций
             _mepLinkedModels = new ObservableCollection<LinkedModelInfo>();
             _arKrLinkedModels = new ObservableCollection<LinkedModelInfo>();
 
-            // Initialize filter settings
+            // Инициализация настроек фильтра
             _mepFilterSettings = new FilterSettings();
             _wallFilterSettings = new FilterSettings();
             _floorFilterSettings = new FilterSettings();
 
-            // Initialize commands
+            // Инициализация команд
             OpenMepFilterCommand = new RelayCommand(OpenMepFilter, CanOpenMepFilter);
             OpenWallFilterCommand = new RelayCommand(OpenWallFilter, CanOpenWallFilter);
             OpenFloorFilterCommand = new RelayCommand(OpenFloorFilter, CanOpenFloorFilter);
@@ -103,12 +101,12 @@ namespace OpeningTask.ViewModels
 
             _cuboidSettings = new CuboidSettings();
 
-            // Initialize external event handler
+            // Инициализация обработчика внешнего события
             _eventHandler = new CuboidPlacementEventHandler();
             _eventHandler.OperationCompleted += OnPlacementCompleted;
             _externalEvent = ExternalEvent.Create(_eventHandler);
 
-            // Load linked models
+            // Загрузка связанных моделей
             LoadLinkedModels();
         }
 
@@ -121,7 +119,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        #region Model section properties
+        #region Свойства секции моделей
 
         public ObservableCollection<LinkedModelInfo> MepLinkedModels
         {
@@ -137,7 +135,7 @@ namespace OpeningTask.ViewModels
 
         #endregion
 
-        #region Filter section properties - MEP systems
+        #region Свойства секции фильтра - MEP системы
 
         public bool IsMepSelectedMode
         {
@@ -146,7 +144,7 @@ namespace OpeningTask.ViewModels
             {
                 if (SetProperty(ref _isMepSelectedMode, value))
                 {
-                    // Update element count when mode changes
+                    // Обновление счётчика элементов при смене режима
                     UpdateMepElementCount();
                 }
             }
@@ -160,7 +158,7 @@ namespace OpeningTask.ViewModels
                 if (SetProperty(ref _isMepFilterMode, value))
                 {
                     _mepFilterSettings.IsFilterEnabled = value;
-                    // Update element count when mode changes
+                    // Обновление счётчика элементов при смене режима
                     UpdateMepElementCount();
                 }
             }
@@ -188,7 +186,7 @@ namespace OpeningTask.ViewModels
 
         #endregion
 
-        #region Filter section properties - walls
+        #region Свойства секции фильтра - стены
 
         public bool IsWallSelectedMode
         {
@@ -237,7 +235,7 @@ namespace OpeningTask.ViewModels
 
         #endregion
 
-        #region Filter section properties - floors
+        #region Свойства секции фильтра - перекрытия
 
         public bool IsFloorSelectedMode
         {
@@ -286,7 +284,7 @@ namespace OpeningTask.ViewModels
 
         #endregion
 
-        #region Cuboid section properties
+        #region Свойства секции боксов
 
         public bool RoundDimensions
         {
@@ -392,18 +390,14 @@ namespace OpeningTask.ViewModels
             set => SetProperty(ref _useTrayAll, value);
         }
 
-        /// <summary>
-        /// Настройки кубиков
-        /// </summary>
+        // Настройки боксов
         public CuboidSettings CuboidSettings
         {
             get => _cuboidSettings;
             set => SetProperty(ref _cuboidSettings, value);
         }
 
-        /// <summary>
-        /// Минимальный отступ от элемента (мм)
-        /// </summary>
+        // Минимальный отступ от элемента (мм)
         public int MinOffset
         {
             get => _minOffset;
@@ -416,9 +410,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Выступ от элемента вставки (мм)
-        /// </summary>
+        // Выступ от элемента вставки (мм)
         public int Protrusion
         {
             get => _protrusion;
@@ -433,11 +425,9 @@ namespace OpeningTask.ViewModels
 
         #endregion
 
-        #region Methods
+        #region Методы
 
-        /// <summary>
-        /// Load linked models
-        /// </summary>
+        // Загрузка связанных моделей
         private void LoadLinkedModels()
         {
             var linkedModels = Functions.GetAllLinkedModels(_doc);
@@ -447,7 +437,7 @@ namespace OpeningTask.ViewModels
 
             foreach (var model in linkedModels)
             {
-                // Add to both collections (user chooses which model for what purpose)
+                // Добавление в обе коллекции
                 var mepModel = new LinkedModelInfo(model.LinkInstance);
                 var arKrModel = new LinkedModelInfo(model.LinkInstance);
 
@@ -456,9 +446,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Check if can open MEP filter
-        /// </summary>
+        // Проверка доступности открытия фильтра MEP
         private bool CanOpenMepFilter()
         {
             return IsMepFilterMode;
@@ -474,9 +462,7 @@ namespace OpeningTask.ViewModels
             return IsFloorFilterMode;
         }
 
-        /// <summary>
-        /// Check if can select MEP elements
-        /// </summary>
+        // Проверка доступности выбора MEP элементов
         private bool CanSelectMepElements()
         {
             return IsMepSelectedMode && _mepLinkedModels.Any(m => m.IsSelected);
@@ -492,23 +478,20 @@ namespace OpeningTask.ViewModels
             return IsFloorSelectedMode && _arKrLinkedModels.Any(m => m.IsSelected);
         }
 
-        /// <summary>
-        /// Update MEP element count based on current filter settings
-        /// </summary>
+        // Обновление счётчика MEP элементов
         private void UpdateMepElementCount()
         {
             int count = 0;
 
-            // Count from manually selected elements
+            // Подсчёт вручную выбранных элементов
             if (IsMepSelectedMode && _mepFilterSettings.SelectedLinkedElements.Any())
             {
                 count = _mepFilterSettings.SelectedLinkedElements.Count;
             }
 
-            // If filter is also enabled, the FilterWindow will refine this count
+            // Если фильтр включён, используем счётчик фильтра
             if (IsMepFilterMode && _mepFilterSettings.ElementCount > 0)
             {
-                // Use filter count if available
                 count = _mepFilterSettings.ElementCount;
             }
 
@@ -549,14 +532,12 @@ namespace OpeningTask.ViewModels
             FloorElementCount = count;
         }
 
-        /// <summary>
-        /// Open MEP filter window
-        /// </summary>
+        // Открытие окна фильтра MEP
         private void OpenMepFilter()
         {
             var selectedMepModels = _mepLinkedModels.Where(m => m.IsSelected).ToList();
             
-            // If we have manually selected elements, use them as base for filtering
+            // Если есть вручную выбранные элементы, используем их как базу
             var preSelectedElements = IsMepSelectedMode ? _mepFilterSettings.SelectedLinkedElements : null;
 
             if (!selectedMepModels.Any() && (preSelectedElements == null || !preSelectedElements.Any()))
@@ -583,9 +564,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Open wall filter window
-        /// </summary>
+        // Открытие окна фильтра стен
         private void OpenWallFilter()
         {
             var selectedArKrModels = _arKrLinkedModels.Where(m => m.IsSelected).ToList();
@@ -615,9 +594,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Open floor filter window
-        /// </summary>
+        // Открытие окна фильтра перекрытий
         private void OpenFloorFilter()
         {
             var selectedArKrModels = _arKrLinkedModels.Where(m => m.IsSelected).ToList();
@@ -678,8 +655,8 @@ namespace OpeningTask.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error selecting elements: {ex.Message}",
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка выбора элементов: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -718,8 +695,8 @@ namespace OpeningTask.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error selecting elements: {ex.Message}",
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка выбора элементов: {ex.Message}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -727,12 +704,10 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Select MEP elements from linked models
-        /// </summary>
+        // Выбор MEP элементов из связанных моделей
         private void SelectMepElements()
         {
-            // Check if any MEP models are selected
+            // Проверка, выбраны ли MEP модели
             var selectedMepModels = _mepLinkedModels.Where(m => m.IsSelected).ToList();
             if (!selectedMepModels.Any())
             {
@@ -743,16 +718,16 @@ namespace OpeningTask.ViewModels
 
             try
             {
-                // Hide window for selection
+                // Скрытие окна для выбора
                 _window?.Hide();
 
-                // Select elements from linked models
+                // Выбор элементов из связанных моделей
                 var selectedElements = Functions.SelectElementsFromLinkedModels(
                     _uiDoc, 
                     selectedMepModels, 
                     Functions.MepCategories);
 
-                // Filter by MEP categories
+                // Фильтрация по MEP категориям
                 var filteredElements = selectedElements
                     .Where(e => e.LinkedElement != null && 
                                 e.LinkedElement.Category != null &&
@@ -766,8 +741,8 @@ namespace OpeningTask.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error selecting elements: {ex.Message}", 
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка выбора элементов: {ex.Message}", 
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -775,9 +750,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Execute OK command
-        /// </summary>
+        // Выполнение команды OK
         private void ExecuteOk()
         {
             RevitTrace.Info("UI OK: clicked");
@@ -881,9 +854,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Обработчик завершения операции размещения кубиков
-        /// </summary>
+        // Обработчик завершения операции размещения боксов
         private void OnPlacementCompleted(bool success, int count, string errorMessage)
         {
             if (success)
@@ -933,9 +904,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Собрать MEP элементы для проверки
-        /// </summary>
+        // Сбор MEP элементов для проверки
         private List<LinkedElementInfo> CollectMepElements()
         {
             var result = new List<LinkedElementInfo>();
@@ -970,9 +939,7 @@ namespace OpeningTask.ViewModels
             return result;
         }
 
-        /// <summary>
-        /// Собрать стены для проверки
-        /// </summary>
+        // Сбор стен для проверки
         private List<LinkedElementInfo> CollectWallElements()
         {
             var result = new List<LinkedElementInfo>();
@@ -1035,9 +1002,7 @@ namespace OpeningTask.ViewModels
             return deduped;
         }
 
-        /// <summary>
-        /// Собрать перекрытия для проверки
-        /// </summary>
+        // Сбор перекрытий для проверки
         private List<LinkedElementInfo> CollectFloorElements()
         {
             var result = new List<LinkedElementInfo>();
@@ -1100,9 +1065,7 @@ namespace OpeningTask.ViewModels
             return deduped;
         }
 
-        /// <summary>
-        /// Execute Cancel command
-        /// </summary>
+        // Выполнение команды Отмена
         private void ExecuteCancel()
         {
             if (_window != null)
@@ -1112,9 +1075,7 @@ namespace OpeningTask.ViewModels
             }
         }
 
-        /// <summary>
-        /// Open instruction
-        /// </summary>
+        // Открытие инструкции
         private void OpenInstruction()
         {
             try
@@ -1123,8 +1084,8 @@ namespace OpeningTask.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Could not open instruction: {ex.Message}", 
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Не удалось открыть инструкцию: {ex.Message}", 
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

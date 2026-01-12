@@ -4,25 +4,17 @@ using OpeningTask.Helpers;
 
 namespace OpeningTask.Models
 {
-    /// <summary>
-    /// Filter type for elements
-    /// </summary>
+    // Тип фильтрации элементов
     public enum FilterType
     {
-        /// <summary>
-        /// Selected elements
-        /// </summary>
+        // Выбранные элементы
         Selected,
 
-        /// <summary>
-        /// By filter (types and parameters)
-        /// </summary>
+        // По фильтру (типы и параметры)
         ByFilter
     }
 
-    /// <summary>
-    /// Filter settings for section
-    /// </summary>
+    // Настройки фильтра
     public class FilterSettings : ViewModels.BaseViewModel
     {
         private FilterType _filterType = FilterType.Selected;
@@ -34,81 +26,63 @@ namespace OpeningTask.Models
         private List<ElementId> _filteredElementIds = new List<ElementId>();
         private List<LinkedElementInfo> _selectedLinkedElements = new List<LinkedElementInfo>();
 
-        /// <summary>
-        /// Filter type
-        /// </summary>
+        // Тип фильтра
         public FilterType FilterType
         {
             get => _filterType;
             set => SetProperty(ref _filterType, value);
         }
 
-        /// <summary>
-        /// Is filter enabled
-        /// </summary>
+        // Включён ли фильтр
         public bool IsFilterEnabled
         {
             get => _isFilterEnabled;
             set => SetProperty(ref _isFilterEnabled, value);
         }
 
-        /// <summary>
-        /// Filtered elements count
-        /// </summary>
+        // Количество отфильтрованных элементов
         public int ElementCount
         {
             get => _elementCount;
             set => SetProperty(ref _elementCount, value);
         }
 
-        /// <summary>
-        /// Selected type IDs
-        /// </summary>
+        // ID выбранных типов
         public List<ElementId> SelectedTypeIds
         {
             get => _selectedTypeIds;
             set => SetProperty(ref _selectedTypeIds, value);
         }
 
-        /// <summary>
-        /// Selected type names (for filtering across different linked models)
-        /// </summary>
+        // Имена выбранных типов (для фильтрации по разным связанным моделям)
         public List<string> SelectedTypeNames
         {
             get => _selectedTypeNames;
             set => SetProperty(ref _selectedTypeNames, value);
         }
 
-        /// <summary>
-        /// Selected parameter values (key - parameter name, value - list of values)
-        /// </summary>
+        // Выбранные значения параметров
         public Dictionary<string, List<string>> SelectedParameterValues
         {
             get => _selectedParameterValues;
             set => SetProperty(ref _selectedParameterValues, value);
         }
 
-        /// <summary>
-        /// List of filtered element IDs (for current document)
-        /// </summary>
+        // Список ID отфильтрованных элементов
         public List<ElementId> FilteredElementIds
         {
             get => _filteredElementIds;
             set => SetProperty(ref _filteredElementIds, value);
         }
 
-        /// <summary>
-        /// List of selected elements from linked models
-        /// </summary>
+        // Список выбранных элементов из связанных моделей
         public List<LinkedElementInfo> SelectedLinkedElements
         {
             get => _selectedLinkedElements;
             set => SetProperty(ref _selectedLinkedElements, value);
         }
 
-        /// <summary>
-        /// Reset filter settings
-        /// </summary>
+        // Сброс настроек фильтра
         public void Reset()
         {
             FilterType = FilterType.Selected;

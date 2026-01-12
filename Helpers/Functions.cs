@@ -8,14 +8,10 @@ using System.Linq;
 
 namespace OpeningTask.Helpers
 {
-    /// <summary>
-    /// Helper functions for Revit operations
-    /// </summary>
+    // Вспомогательные функции для работы с Revit
     public static class Functions
     {
-        /// <summary>
-        /// MEP system categories
-        /// </summary>
+        // Категории MEP систем
         public static readonly BuiltInCategory[] MepCategories = new[]
         {
             BuiltInCategory.OST_PipeCurves,
@@ -26,9 +22,7 @@ namespace OpeningTask.Helpers
             BuiltInCategory.OST_FlexDuctCurves
         };
 
-        /// <summary>
-        /// Get all linked models from document
-        /// </summary>
+        // Получение всех связанных моделей из документа
         public static List<LinkedModelInfo> GetAllLinkedModels(Document doc)
         {
             var result = new List<LinkedModelInfo>();
@@ -51,16 +45,14 @@ namespace OpeningTask.Helpers
                 }
                 catch (Exception)
                 {
-                    // Skip unloaded links
+                    // Пропуск незагруженных связей
                 }
             }
 
             return result;
         }
 
-        /// <summary>
-        /// Get element types by categories from document
-        /// </summary>
+        // Получение типов элементов по категориям из документа
         public static Dictionary<string, List<ElementType>> GetTypesByCategories(Document doc, BuiltInCategory[] categories)
         {
             var result = new Dictionary<string, List<ElementType>>();
@@ -84,9 +76,7 @@ namespace OpeningTask.Helpers
             return result;
         }
 
-        /// <summary>
-        /// Get MEP element types from linked models
-        /// </summary>
+        // Получение типов MEP элементов из связанных моделей
         public static Dictionary<string, List<ElementType>> GetMepTypesFromLinkedModels(IEnumerable<LinkedModelInfo> linkedModels)
         {
             var result = new Dictionary<string, List<ElementType>>();
@@ -100,7 +90,7 @@ namespace OpeningTask.Helpers
                 {
                     if (result.ContainsKey(kvp.Key))
                     {
-                        // Merge types avoiding duplicates by name
+                    // Объединение типов с исключением дубликатов по имени
                         var existingNames = result[kvp.Key].Select(t => t.Name).ToHashSet();
                         var newTypes = kvp.Value.Where(t => !existingNames.Contains(t.Name));
                         result[kvp.Key].AddRange(newTypes);
@@ -115,9 +105,7 @@ namespace OpeningTask.Helpers
             return result;
         }
 
-        /// <summary>
-        /// Get wall types from linked models
-        /// </summary>
+        // Получение типов стен из связанных моделей
         public static Dictionary<string, List<ElementType>> GetWallTypesFromLinkedModels(IEnumerable<LinkedModelInfo> linkedModels)
         {
             var result = new Dictionary<string, List<ElementType>>();
@@ -152,9 +140,7 @@ namespace OpeningTask.Helpers
             return result;
         }
 
-        /// <summary>
-        /// Get floor types from linked models
-        /// </summary>
+        // Получение типов перекрытий из связанных моделей
         public static Dictionary<string, List<ElementType>> GetFloorTypesFromLinkedModels(IEnumerable<LinkedModelInfo> linkedModels)
         {
             var result = new Dictionary<string, List<ElementType>>();
@@ -189,9 +175,7 @@ namespace OpeningTask.Helpers
             return result;
         }
 
-        /// <summary>
-        /// Get parameter values for selected types
-        /// </summary>
+        // Получение значений параметров для выбранных типов
         public static Dictionary<string, HashSet<string>> GetParameterValuesForTypes(Document doc, IEnumerable<ElementId> typeIds)
         {
             var result = new Dictionary<string, HashSet<string>>();
@@ -228,9 +212,7 @@ namespace OpeningTask.Helpers
             return result;
         }
 
-        /// <summary>
-        /// Filter elements by types and parameters
-        /// </summary>
+        // Фильтрация элементов по типам и параметрам
         public static List<Element> FilterElements(Document doc, FilterSettings settings, BuiltInCategory[] categories)
         {
             var result = new List<Element>();
@@ -243,7 +225,7 @@ namespace OpeningTask.Helpers
                 .WhereElementIsNotElementType()
                 .ToList();
 
-            // Filter by type names (works across different linked models)
+            // Фильтрация по именам типов (работает для разных связанных моделей)
             if (settings.SelectedTypeNames != null && settings.SelectedTypeNames.Any())
             {
                 elements = elements
@@ -257,7 +239,7 @@ namespace OpeningTask.Helpers
                     .ToList();
             }
 
-            // Filter by parameters
+            // Фильтрация по параметрам
             if (settings.SelectedParameterValues.Any())
             {
                 elements = elements.Where(e =>
@@ -277,9 +259,7 @@ namespace OpeningTask.Helpers
             return elements;
         }
 
-        /// <summary>
-        /// Get category name
-        /// </summary>
+        // Получение имени категории
         public static string GetCategoryName(Document doc, BuiltInCategory category)
         {
             try
@@ -293,9 +273,7 @@ namespace OpeningTask.Helpers
             }
         }
 
-        /// <summary>
-        /// Get parameter string value
-        /// </summary>
+        // Получение строкового значения параметра
         private static string GetParameterStringValue(Parameter param)
         {
             if (param == null) return null;
@@ -318,9 +296,7 @@ namespace OpeningTask.Helpers
             }
         }
 
-        /// <summary>
-        /// Load cuboid family
-        /// </summary>
+        // Загрузка семейства бокса
         public static Family LoadCuboidFamily(Document doc, string familyPath)
         {
             Family family = null;
@@ -331,7 +307,7 @@ namespace OpeningTask.Helpers
 
                 if (!doc.LoadFamily(familyPath, out family))
                 {
-                    // Family already loaded, find it
+                    // Семейство уже загружено, ищем его
                     var familyName = System.IO.Path.GetFileNameWithoutExtension(familyPath);
                     family = new FilteredElementCollector(doc)
                         .OfClass(typeof(Family))
@@ -345,9 +321,7 @@ namespace OpeningTask.Helpers
             return family;
         }
 
-        /// <summary>
-        /// Select elements on view
-        /// </summary>
+        // Выбор элементов на виде
         public static List<ElementId> SelectElementsOnView(UIDocument uiDoc, BuiltInCategory[] categories)
         {
             try
@@ -357,7 +331,7 @@ namespace OpeningTask.Helpers
 
                 if (!selectedIds.Any())
                 {
-                    // If nothing selected, prompt user to select
+                    // Если ничего не выбрано, запрашиваем выбор у пользователя
                     var reference = selection.PickObjects(
                         ObjectType.Element,
                         "Select MEP elements");
@@ -365,7 +339,7 @@ namespace OpeningTask.Helpers
                     return reference.Select(r => r.ElementId).ToList();
                 }
 
-                // Filter already selected elements by categories
+                // Фильтрация уже выбранных элементов по категориям
                 return selectedIds
                     .Select(id => uiDoc.Document.GetElement(id))
                     .Where(e => e != null && categories.Any(c => 
@@ -379,9 +353,7 @@ namespace OpeningTask.Helpers
             }
         }
 
-        /// <summary>
-        /// Select elements from linked models interactively
-        /// </summary>
+        // Интерактивный выбор элементов из связанных моделей
         public static List<LinkedElementInfo> SelectElementsFromLinkedModels(
             UIDocument uiDoc, 
             IEnumerable<LinkedModelInfo> selectedLinkedModels,
@@ -393,10 +365,10 @@ namespace OpeningTask.Helpers
             {
                 var selection = uiDoc.Selection;
                 
-                // Create filter for linked elements
+                // Создание фильтра для связанных элементов
                 var linkedModelFilter = new LinkedElementSelectionFilter(uiDoc.Document, selectedLinkedModels, categories);
                 
-                // Prompt user to select elements from linked models
+                // Запрос выбора элементов из связанных моделей
                 var references = selection.PickObjects(
                     ObjectType.LinkedElement,
                     linkedModelFilter,
@@ -404,14 +376,14 @@ namespace OpeningTask.Helpers
 
                 foreach (var reference in references)
                 {
-                    // Get link instance
+                    // Получение экземпляра связи
                     var linkInstance = uiDoc.Document.GetElement(reference.ElementId) as RevitLinkInstance;
                     if (linkInstance == null) continue;
 
                     var linkedDoc = linkInstance.GetLinkDocument();
                     if (linkedDoc == null) continue;
 
-                    // Get linked element
+                    // Получение связанного элемента
                     var linkedElementId = reference.LinkedElementId;
                     var linkedElement = linkedDoc.GetElement(linkedElementId);
                     if (linkedElement == null) continue;
@@ -427,19 +399,17 @@ namespace OpeningTask.Helpers
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException)
             {
-                // User cancelled selection - return what we have
+                // Пользователь отменил выбор
             }
             catch (Exception)
             {
-                // Other error
+                // Другая ошибка
             }
 
             return result;
         }
 
-        /// <summary>
-        /// Count MEP elements in selected linked models
-        /// </summary>
+        // Подсчёт MEP элементов в выбранных связанных моделях
         public static int CountMepElementsInLinkedModels(IEnumerable<LinkedModelInfo> linkedModels, BuiltInCategory[] categories)
         {
             int count = 0;
@@ -459,9 +429,7 @@ namespace OpeningTask.Helpers
         }
     }
 
-    /// <summary>
-    /// Information about element from linked model
-    /// </summary>
+    // Информация об элементе из связанной модели
     public class LinkedElementInfo
     {
         public RevitLinkInstance LinkInstance { get; set; }
@@ -470,9 +438,7 @@ namespace OpeningTask.Helpers
         public Document LinkedDocument { get; set; }
     }
 
-    /// <summary>
-    /// Selection filter for linked elements
-    /// </summary>
+    // Фильтр выбора для связанных элементов
     public class LinkedElementSelectionFilter : ISelectionFilter
     {
         private readonly Document _hostDocument;
@@ -500,7 +466,7 @@ namespace OpeningTask.Helpers
 
         public bool AllowElement(Element elem)
         {
-            // Allow only selected link instances
+            // Разрешаем только выбранные экземпляры связей
             if (elem is RevitLinkInstance linkInstance)
             {
                 return _allowedLinkIds.Contains(linkInstance.Id);
@@ -515,11 +481,11 @@ namespace OpeningTask.Helpers
                 if (reference == null) return false;
                 if (_hostDocument == null) return false;
 
-                // Ensure the link instance itself is allowed
+                // Проверка, что экземпляр связи разрешён
                 if (!_allowedLinkIds.Contains(reference.ElementId))
                     return false;
 
-                // Check linked element category
+                // Проверка категории связанного элемента
                 var linkInstance = reference.ElementId != null
                     ? _hostDocument.GetElement(reference.ElementId) as RevitLinkInstance
                     : null;

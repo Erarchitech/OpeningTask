@@ -5,14 +5,10 @@ using System.Linq;
 
 namespace OpeningTask.Helpers
 {
-    /// <summary>
-    /// Extension methods for Revit API
-    /// </summary>
+    // Методы расширения для Revit API
     public static class Extensions
     {
-        /// <summary>
-        /// Get parameter value as string
-        /// </summary>
+        // Получение значения параметра как строки
         public static string GetParameterValueAsString(this Element element, string parameterName)
         {
             var parameter = element.LookupParameter(parameterName);
@@ -37,9 +33,7 @@ namespace OpeningTask.Helpers
             }
         }
 
-        /// <summary>
-        /// Get all parameters of an element
-        /// </summary>
+        // Получение всех параметров элемента
         public static IEnumerable<Parameter> GetAllParameters(this Element element)
         {
             var parameters = new List<Parameter>();
@@ -50,9 +44,7 @@ namespace OpeningTask.Helpers
             return parameters;
         }
 
-        /// <summary>
-        /// Get element type name
-        /// </summary>
+        // Получение имени типа элемента
         public static string GetTypeName(this Element element)
         {
             var typeId = element.GetTypeId();
@@ -62,17 +54,13 @@ namespace OpeningTask.Helpers
             return type?.Name ?? "Unknown type";
         }
 
-        /// <summary>
-        /// Get category name
-        /// </summary>
+        // Получение имени категории
         public static string GetCategoryName(this Element element)
         {
             return element.Category?.Name ?? "No category";
         }
 
-        /// <summary>
-        /// Check if element is MEP element
-        /// </summary>
+        // Проверка, является ли элемент MEP элементом
         public static bool IsMepElement(this Element element)
         {
             if (element?.Category == null) return false;
@@ -91,14 +79,12 @@ namespace OpeningTask.Helpers
                 BuiltInCategory.OST_DuctAccessory
             };
 
-            // Use Value property for Revit 2024 (IntegerValue is obsolete)
+            // Используем свойство Value для Revit 2024 (IntegerValue устарело)
             var categoryId = element.Category.Id.Value;
             return mepCategories.Any(c => (long)c == categoryId);
         }
 
-        /// <summary>
-        /// Check if category is MEP category
-        /// </summary>
+        // Проверка, является ли категория MEP категорией
         public static bool IsMepCategory(this BuiltInCategory category)
         {
             var mepCategories = new[]
@@ -118,9 +104,7 @@ namespace OpeningTask.Helpers
             return mepCategories.Contains(category);
         }
 
-        /// <summary>
-        /// Safe get document from link
-        /// </summary>
+        // Безопасное получение документа из связи
         public static Document GetLinkDocumentSafe(this RevitLinkInstance linkInstance)
         {
             try

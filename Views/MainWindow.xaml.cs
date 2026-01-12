@@ -17,7 +17,7 @@ namespace OpeningTask.Views
             DataContext = viewModel;
             viewModel.SetWindow(this);
 
-            // Subscribe to visibility changes to refresh bindings
+            // Подписка на изменения видимости для обновления привязок
             this.IsVisibleChanged += MainWindow_IsVisibleChanged;
         }
 
@@ -25,7 +25,7 @@ namespace OpeningTask.Views
         {
             if ((bool)e.NewValue == true)
             {
-                // Force refresh of ItemsControl bindings when window becomes visible
+                // Принудительное обновление привязок ItemsControl при появлении окна
                 MepModelsControl?.Items.Refresh();
                 ArKrModelsControl?.Items.Refresh();
             }

@@ -27,7 +27,7 @@ namespace OpeningTask
             string assemblyPath = Assembly.GetExecutingAssembly().Location;
             PushButtonData button = new PushButtonData("OpeningTask", "Задания\nна отверстия", assemblyPath, "OpeningTask.Commands.OpeningTaskCommand");
             
-            // Добавляем иконку для кнопки (32x32 для LargeImage)
+            // Иконка для кнопки (32x32 для LargeImage)
             try
             {
                 var largeIcon = new System.Windows.Media.Imaging.BitmapImage();
@@ -38,7 +38,7 @@ namespace OpeningTask
                 largeIcon.EndInit();
                 button.LargeImage = largeIcon;
                 
-                // Маленькая иконка (16x16) для панели инструментов
+                // Маленькая иконка (16x16)
                 var smallIcon = new System.Windows.Media.Imaging.BitmapImage();
                 smallIcon.BeginInit();
                 smallIcon.UriSource = new Uri("pack://application:,,,/OpeningTask;component/Resources/Images/OpeningTaskButton.png");
