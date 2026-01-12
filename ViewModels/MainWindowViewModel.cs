@@ -942,127 +942,65 @@ namespace OpeningTask.ViewModels
         // Сбор стен для проверки
         private List<LinkedElementInfo> CollectWallElements()
         {
-            var result = new List<LinkedElementInfo>();
-            var existing = new HashSet<string>();
-
-            if (IsWallSelectedMode && _wallFilterSettings.SelectedLinkedElements.Any())
-            {
-                foreach (var info in _wallFilterSettings.SelectedLinkedElements)
-                {
-                    if (info?.LinkInstance == null || info.LinkedElementId == null) continue;
-
-                    var key = info.LinkInstance.Id.Value + ":" + info.LinkedElementId.Value;
-                    if (existing.Add(key))
-                    {
-                        result.Add(info);
-                    }
-                }
-            }
-
-            if (!IsWallFilterMode || !_wallFilterSettings.IsFilterEnabled) return result;
-
-            foreach (var linkedModel in _arKrLinkedModels.Where(m => m.IsSelected && m.IsLoaded))
-            {
-                var elements = Functions.FilterElements(
-                    linkedModel.LinkedDocument,
-                    _wallFilterSettings,
-                    new[] { BuiltInCategory.OST_Walls });
-
-                foreach (var element in elements)
-                {
-                    result.Add(new LinkedElementInfo
-                    {
-                        LinkInstance = linkedModel.LinkInstance,
-                        LinkedElementId = element.Id,
-                        LinkedElement = element,
-                        LinkedDocument = linkedModel.LinkedDocument
-                    });
-                }
-            }
-
-            if (!result.Any())
-            {
-                return result;
-            }
-
-            // De-duplicate (Selected + ByFilter may overlap)
-            var deduped = new List<LinkedElementInfo>(result.Count);
-            var seen = new HashSet<string>();
-            foreach (var info in result)
-            {
-                if (info?.LinkInstance == null || info.LinkedElementId == null) continue;
-
-                var key = info.LinkInstance.Id.Value + ":" + info.LinkedElementId.Value;
-                if (seen.Add(key))
-                {
-                    deduped.Add(info);
-                }
-            }
-
-            return deduped;
+            return CollectHostElements(
+                IsWallSelectedMode, IsWallFilterMode,
+                _wallFilterSettings, BuiltInCategory.OST_Walls);
         }
 
         // Сбор перекрытий для проверки
         private List<LinkedElementInfo> CollectFloorElements()
         {
-            var result = new List<LinkedElementInfo>();
-            var existing = new HashSet<string>();
+            return CollectHostElements(
+                IsFloorSelectedMode, IsFloorFilterMode,
+                _floorFilterSettings, BuiltInCategory.OST_Floors);
+        }
 
-            if (IsFloorSelectedMode && _floorFilterSettings.SelectedLinkedElements.Any())
+        // Общий метод сбора элементов хоста (стены/перекрытия)
+        private List<LinkedElementInfo> CollectHostElements(
+            bool isSelectedMode, bool isFilterMode,
+            FilterSettings filterSettings, BuiltInCategory category)
+        {
+            var result = new List<LinkedElementInfo>();
+            var seen = new HashSet<string>();
+
+            if (isSelectedMode && filterSettings.SelectedLinkedElements.Any())
             {
-                foreach (var info in _floorFilterSettings.SelectedLinkedElements)
+                foreach (var info in filterSettings.SelectedLinkedElements)
                 {
                     if (info?.LinkInstance == null || info.LinkedElementId == null) continue;
-
                     var key = info.LinkInstance.Id.Value + ":" + info.LinkedElementId.Value;
-                    if (existing.Add(key))
-                    {
+                    if (seen.Add(key))
                         result.Add(info);
+                }
+            }
+
+            if (isFilterMode && filterSettings.IsFilterEnabled)
+            {
+                foreach (var linkedModel in _arKrLinkedModels.Where(m => m.IsSelected && m.IsLoaded))
+                {
+                    var elements = Functions.FilterElements(
+                        linkedModel.LinkedDocument,
+                        filterSettings,
+                        new[] { category });
+
+                    foreach (var element in elements)
+                    {
+                        var key = linkedModel.LinkInstance.Id.Value + ":" + element.Id.Value;
+                        if (seen.Add(key))
+                        {
+                            result.Add(new LinkedElementInfo
+                            {
+                                LinkInstance = linkedModel.LinkInstance,
+                                LinkedElementId = element.Id,
+                                LinkedElement = element,
+                                LinkedDocument = linkedModel.LinkedDocument
+                            });
+                        }
                     }
                 }
             }
 
-            if (!IsFloorFilterMode || !_floorFilterSettings.IsFilterEnabled) return result;
-
-            foreach (var linkedModel in _arKrLinkedModels.Where(m => m.IsSelected && m.IsLoaded))
-            {
-                var elements = Functions.FilterElements(
-                    linkedModel.LinkedDocument,
-                    _floorFilterSettings,
-                    new[] { BuiltInCategory.OST_Floors });
-
-                foreach (var element in elements)
-                {
-                    result.Add(new LinkedElementInfo
-                    {
-                        LinkInstance = linkedModel.LinkInstance,
-                        LinkedElementId = element.Id,
-                        LinkedElement = element,
-                        LinkedDocument = linkedModel.LinkedDocument
-                    });
-                }
-            }
-
-            if (!result.Any())
-            {
-                return result;
-            }
-
-            // De-duplicate (Selected + ByFilter may overlap)
-            var deduped = new List<LinkedElementInfo>(result.Count);
-            var seen = new HashSet<string>();
-            foreach (var info in result)
-            {
-                if (info?.LinkInstance == null || info.LinkedElementId == null) continue;
-
-                var key = info.LinkInstance.Id.Value + ":" + info.LinkedElementId.Value;
-                if (seen.Add(key))
-                {
-                    deduped.Add(info);
-                }
-            }
-
-            return deduped;
+            return result;
         }
 
         // Выполнение команды Отмена
@@ -1080,7 +1018,7 @@ namespace OpeningTask.ViewModels
         {
             try
             {
-                System.Diagnostics.Process.Start("https://example.com/instruction");
+                System.Diagnostics.Process.Start("https://task.com/instruction");
             }
             catch (Exception ex)
             {

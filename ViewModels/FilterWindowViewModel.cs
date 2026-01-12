@@ -320,7 +320,7 @@ namespace OpeningTask.ViewModels
                     if (param.StorageType == StorageType.None) continue;
 
                     var paramName = param.Definition.Name;
-                    var value = GetParameterStringValue(param);
+                    var value = param.GetStringValue();
 
                     if (string.IsNullOrWhiteSpace(value)) continue;
 
@@ -432,7 +432,7 @@ namespace OpeningTask.ViewModels
                         var param = e.LookupParameter(kvp.Key);
                         if (param == null) continue;
 
-                        var value = GetParameterStringValue(param);
+                        var value = param.GetStringValue();
                         if (value != null && kvp.Value.Contains(value))
                         {
                             return true;
@@ -443,29 +443,6 @@ namespace OpeningTask.ViewModels
             }
 
             return elements.Count;
-        }
-
-        // ѕолучение строкового значени€ параметра
-        private string GetParameterStringValue(Parameter param)
-        {
-            if (param == null) return null;
-
-            switch (param.StorageType)
-            {
-                case StorageType.String:
-                    return param.AsString();
-                case StorageType.Integer:
-                    return param.AsInteger().ToString();
-                case StorageType.Double:
-                    return Math.Round(param.AsDouble(), 2).ToString();
-                case StorageType.ElementId:
-                    var id = param.AsElementId();
-                    if (id == ElementId.InvalidElementId) return null;
-                    var element = param.Element?.Document?.GetElement(id);
-                    return element?.Name;
-                default:
-                    return null;
-            }
         }
 
         // ќбновление состо€ни€ узла категории на основе дочерних
